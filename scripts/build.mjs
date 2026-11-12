@@ -46,10 +46,17 @@ async function pool(items, n, fn) {
 
 async function catalogFromTmdb() {
   const ids = new Map();
-  for (let page = 1; page <= MAX_PAGES; page++) {
-    const r = await tmdb(`/discover/tv?with_origin_country=KR&with_original_language=ko&without_genres=${EXCLUDE_GENRES}&sort_by=popularity.desc&include_null_first_air_dates=false&page=${page}`);
-    for (const s of r.results) if (s.poster_path && s.first_air_date) ids.set(s.id, s);
-    if (page >= r.total_pages) break;
+  // Two passes: Korean-origin series, then any Korean-language series (co-productions, web dramas listed elsewhere).
+  const queries = [
+    `with_origin_country=KR&with_original_language=ko`,
+    `with_original_language=ko`
+  ];
+  for (const q of queries) {
+    for (let page = 1; page <= MAX_PAGES; page++) {
+      const r = await tmdb(`/discover/tv?${q}&without_genres=${EXCLUDE_GENRES}&sort_by=popularity.desc&page=${page}`);
+      for (const s of r.results) if (s.poster_path && s.first_air_date) ids.set(s.id, s);
+      if (page >= r.total_pages) break;
+    }
   }
   console.log(`TMDB: ${ids.size} Korean series found, fetching details…`);
   const list = await pool([...ids.keys()], 8, async id => {
@@ -72,8 +79,8 @@ async function catalogFromTmdb() {
       };
     } catch (e) { console.warn(String(e)); return null; }
   });
-  // Keep every series that streams somewhere we cover, plus anything with a real audience.
-  return list.filter(d => d && (Object.keys(d.providers).length || d.votes >= 10));
+  // Keep everything with a poster: the catalog should be as complete as possible.
+  return list.filter(Boolean);
 }
 
 async function catalogFromSeed() {
