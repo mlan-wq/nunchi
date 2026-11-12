@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nunchi · K-drama community</title>
+<meta name="description" content="Discover K-dramas, see where to stream them, rate, review, track what you watch and connect with fans.">
+<link rel="icon" type="image/png" href="/star.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="rstar" viewBox="0 0 100 100"><path d="M50 14 L60 37 L85 40 L66 57 L71 82 L50 70 L29 82 L34 57 L15 40 L40 37 Z" stroke-linejoin="round" stroke-width="14"/></symbol>
+  <symbol id="sparkle" viewBox="0 0 40 40"><path d="M20 3 C22 13 27 18 37 20 C27 22 22 27 20 37 C18 27 13 22 3 20 C13 18 18 13 20 3Z"/></symbol>
+  <symbol id="search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M16.5 16.5 L21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></symbol>
+</svg>
+
+<header class="nav">
+  <div class="wrap">
+    <div class="nav-inner">
+      <a href="#home" class="wordmark" aria-label="Nunchi home"><img src="/star.png" alt="">nunchi</a>
+      <nav class="links">
+        <a href="#home" data-v="home">Discover</a>
+        <a href="#catalog" data-v="catalog">Catalog</a>
+        <a href="#ranking" data-v="ranking">Ranking</a>
+        <a href="#community" data-v="community">Community</a>
+        <a href="#my-list" data-v="my-list">My List</a>
+      </nav>
+      <div class="nav-right">
+        <select class="chip region" id="region" aria-label="Your country"></select>
+        <a class="icon-btn" href="#catalog" title="Search the catalog" aria-label="Search the catalog"><svg><use href="#search"/></svg></a>
+        <div id="authSlot"></div>
+      </div>
+    </div>
+    <nav class="mobile-nav">
+      <a href="#home" data-v="home">Discover</a>
+      <a href="#catalog" data-v="catalog">Catalog</a>
+      <a href="#ranking" data-v="ranking">Ranking</a>
+      <a href="#community" data-v="community">Community</a>
+      <a href="#my-list" data-v="my-list">My List</a>
+    </nav>
+  </div>
+</header>
+
+<main id="app"><div class="wrap"><div class="empty"><img src="/star.png" alt="">Loading the catalog…</div></div></main>
+
+<div class="wrap">
+  <footer>
+    <img class="full" src="/logo.png" alt="Nunchi, K-drama community">
+    <div>read the room. feel the drama.</div>
+    <div id="dataNote" class="data-note"></div>
+  </footer>
+</div>
+
+<dialog id="authDialog" class="sheet" aria-labelledby="authTitle"></dialog>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script type="module" src="/app.js"></script>
+</body>
+</html>
