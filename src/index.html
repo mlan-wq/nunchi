@@ -34,13 +34,6 @@
         <div id="authSlot"></div>
       </div>
     </div>
-    <nav class="mobile-nav">
-      <a href="#home" data-v="home">Discover</a>
-      <a href="#catalog" data-v="catalog">Catalog</a>
-      <a href="#ranking" data-v="ranking">Ranking</a>
-      <a href="#community" data-v="community">Community</a>
-      <a href="#my-list" data-v="my-list">My List</a>
-    </nav>
   </div>
 </header>
 
@@ -53,6 +46,14 @@
     <div id="dataNote" class="data-note"></div>
   </footer>
 </div>
+
+<nav class="tabbar" aria-label="Main">
+  <a href="#home" data-v="home"><span class="tab-ic">🏠</span><span class="tab-label">Discover</span></a>
+  <a href="#catalog" data-v="catalog"><span class="tab-ic">🔍</span><span class="tab-label">Catalog</span></a>
+  <a href="#community" data-v="community"><span class="tab-ic">💜</span><span class="tab-label">Community</span></a>
+  <a href="#my-list" data-v="my-list"><span class="tab-ic">📺</span><span class="tab-label">My list</span></a>
+  <a href="#login" id="tabMe" data-v="me"><span class="tab-ic">👤</span><span class="tab-label">Log in</span></a>
+</nav>
 
 <dialog id="authDialog" class="sheet" aria-labelledby="authTitle"></dialog>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
