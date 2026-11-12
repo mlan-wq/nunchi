@@ -89,7 +89,10 @@ if (KEY) {
 }
 if (!dramas?.length) { dramas = await catalogFromSeed(); source = "seed"; REGIONS.splice(0, REGIONS.length, "US"); }
 await writeFile("dist/data/dramas.json", JSON.stringify({ source, regions: REGIONS, builtAt: new Date().toISOString(), dramas }));
-console.log(`Catalog: ${dramas.length} dramas from ${source}`);
+const perPlatform = {};
+for (const d of dramas) for (const [reg, ps] of Object.entries(d.providers || {})) for (const p of ps) { perPlatform[reg] ||= {}; perPlatform[reg][p] = (perPlatform[reg][p] || 0) + 1; }
+await writeFile("dist/data/meta.json", JSON.stringify({ source, total: dramas.length, withPoster: dramas.filter(d => d.poster).length, perPlatform, builtAt: new Date().toISOString() }, null, 1));
+console.log(`Catalog: ${dramas.length} dramas from ${source}`, perPlatform);
 
 await build({ entryPoints: ["src/app.js"], bundle: true, minify: true, format: "esm", target: "es2020", outfile: "dist/app.js" });
 for (const f of ["index.html", "styles.css", "star.png", "logo.png"]) await copyFile(`src/${f}`, `dist/${f}`);
