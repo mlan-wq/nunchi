@@ -212,7 +212,7 @@ export async function viewDetail(app, id){
             <span class="wi-left"><span class="logo-dot" style="background:${P.color}">${P.letter}</span><span>${P.name}<small>Included with subscription</small></span></span><span class="go">Open ↗</span></a>`}).join("")}</div>`
             :`<p class="where-note">Not streaming in ${esc(COUNTRY[S.region]||S.region)} right now.</p>`}
           ${others.length?`<p class="where-note">Also streaming in ${others.map(([r,l])=>`${esc(COUNTRY[r]||r)} (${l.map(p=>PLATFORMS[p].name).join(", ")})`).join(" · ")}.</p>`:""}
-          <p class="where-note">${d.links?.[S.region]?`<a href="${esc(d.links[S.region])}" target="_blank" rel="noopener">See every option on TMDB</a> · `:""}Streaming data by JustWatch.</p>
+          <p class="where-note">${/^\d+$/.test(d.id)?`<a href="https://www.themoviedb.org/tv/${d.id}/watch?locale=${S.region}" target="_blank" rel="noopener">See every option on TMDB</a> · `:""}Streaming data by JustWatch.</p>
         </div>
       </div>
     </div>

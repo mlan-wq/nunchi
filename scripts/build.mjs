@@ -5,7 +5,7 @@ import vm from "node:vm";
 
 const KEY = process.env.TMDB_API_KEY || "";
 const REGIONS = (process.env.TMDB_REGIONS || "US,MX,CO,AR,CL,PE,ES").split(",").map(s => s.trim().toUpperCase()).filter(Boolean);
-const MAX_PAGES = +(process.env.TMDB_PAGES || 150); // 20 shows per page
+const MAX_PAGES = Math.min(500, +(process.env.TMDB_PAGES || 500)); // 20 shows per page; TMDB stops at page 500
 const EXCLUDE_GENRES = "10764|10767|10763|16|99|10762"; // reality, talk, news, animation, documentary, kids
 
 // Map TMDB provider names to Nunchi platform keys.
@@ -56,23 +56,24 @@ async function catalogFromTmdb() {
     try {
       const d = await tmdb(`/tv/${id}?append_to_response=watch/providers`);
       const wp = d["watch/providers"]?.results || {};
-      const providers = {}; const links = {};
+      const providers = {};
       for (const reg of REGIONS) {
         const R = wp[reg]; if (!R) continue;
         const keys = new Set([...(R.flatrate || []), ...(R.ads || []), ...(R.free || [])].map(p => platformKey(p.provider_name)).filter(Boolean));
-        if (keys.size) { providers[reg] = [...keys]; links[reg] = R.link; }
+        if (keys.size) providers[reg] = [...keys];
       }
       return {
         id: String(d.id), title: d.name, original: d.original_name !== d.name ? d.original_name : undefined,
         year: +d.first_air_date.slice(0, 4), eps: d.number_of_episodes || null,
         genres: d.genres.map(g => GENRE_RENAME[g.name] || g.name),
         score: Math.round(d.vote_average * 5) / 10, votes: d.vote_count, pop: Math.round(d.popularity),
-        synopsis: (d.overview || "").slice(0, 600), poster: d.poster_path, backdrop: d.backdrop_path || undefined,
-        providers, links
+        synopsis: (d.overview || "").slice(0, 420), poster: d.poster_path, backdrop: d.backdrop_path || undefined,
+        providers
       };
     } catch (e) { console.warn(String(e)); return null; }
   });
-  return list.filter(Boolean);
+  // Keep every series that streams somewhere we cover, plus anything with a real audience.
+  return list.filter(d => d && (Object.keys(d.providers).length || d.votes >= 10));
 }
 
 async function catalogFromSeed() {
