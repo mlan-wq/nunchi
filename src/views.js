@@ -300,11 +300,12 @@ export function viewMyList(app){
 }
 
 /* ---------- profile ---------- */
-const STAR_FILTERS = [["all","All"],["5","★ 5"],["4","★ 4+"],["3","★ 3+"],["low","★ 2 or less"],["none","Not rated"]];
+const STAR_FILTERS = [["all","All"],["5","★★★★★"],["4","★★★★"],["3","★★★"],["2","★★"],["1","★"],["none","Not rated"]];
 const SORTS = [["recent","Most recent"],["high","Most stars first"],["low","Fewest stars first"],["title","Title A–Z"],["newest","Newest dramas"],["oldest","Oldest dramas"],["score","Highest community score"]];
 function sortProfile(items, keepOrder=false){
   const f = S.profileStars, r = x => x.e?.rating || 0;
-  let out = items.filter(x => f==="all" || (f==="none" ? !r(x) : f==="low" ? r(x) && r(x)<=2 : r(x) >= +f));
+  // exact match on the profile owner's own rating: "4" shows 4 and 4.5, never 5
+  let out = items.filter(x => f==="all" || (f==="none" ? !r(x) : r(x) && Math.floor(r(x))===+f || (+f===1 && r(x)===0.5)));
   const by = {
     recent: (a,b)=>(b.e?.at||0)-(a.e?.at||0),
     high: (a,b)=>r(b)-r(a) || (b.e?.at||0)-(a.e?.at||0),
@@ -320,7 +321,7 @@ function sortProfile(items, keepOrder=false){
 function profileTools(tab, total){
   if (!total) return "";
   return `<div class="p-tools">
-    <div class="chips-scroll star-filter" role="group" aria-label="Filter by stars">${STAR_FILTERS.filter(([k])=>!(tab==="rated"||tab==="reviews") || k!=="none").map(([k,v])=>`<button class="chip" data-pstars="${k}" aria-pressed="${S.profileStars===k}">${v}</button>`).join("")}</div>
+    <div class="chips-scroll star-filter" role="group" aria-label="Filter by stars">${STAR_FILTERS.filter(([k])=>!(tab==="rated"||tab==="reviews") || k!=="none").map(([k,v])=>`<button class="chip ${/★/.test(v)?"star-chip":""}" data-pstars="${k}" aria-pressed="${S.profileStars===k}" aria-label="${k==="all"||k==="none"?v:`${k} star${k==="1"?"":"s"}`}">${v}</button>`).join("")}</div>
     <label class="sort-sel"><span>Sort</span><select class="chip" id="pSort">${SORTS.map(([k,v])=>`<option value="${k}" ${S.profileSort===k?"selected":""}>${v}</option>`).join("")}</select></label>
   </div>`;
 }
