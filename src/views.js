@@ -84,6 +84,17 @@ export function badgesFor(p, reviewsCount){
   ].map(([key,name,desc,got])=>({icon:BADGE_ART[key],name,desc,got}));
 }
 
+/* ---------- members-only gate ---------- */
+export function lockedHtml(title, text, big=false){
+  const ghost = ["a03","a08","a12","a19"].map((a,i)=>`<div class="ghost-card"><img src="/avatars/${a}.svg" alt=""><div><i style="width:${60+i*7}%"></i><i style="width:${85-i*9}%"></i><i style="width:${50+i*5}%"></i></div></div>`).join("");
+  return `<div class="locked ${big?"big":""}"><div class="ghosts" aria-hidden="true">${ghost}</div>
+    <div class="locked-body"><img src="/star.png" alt=""><h3>${title}</h3><p>${text}</p>
+      <div class="locked-actions"><button class="btn" data-act="signup">Create my free profile</button><button class="btn ghost" data-act="login">Log in</button></div></div></div>`;
+}
+export function viewLocked(app, title, text){
+  app.innerHTML = `<div class="wrap"><div class="page-head"><span class="eyebrow">Members only</span><h1>${title}</h1></div>${lockedHtml("Profiles are private on Nunchi", text, true)}</div>`;
+}
+
 /* ---------- home ---------- */
 export async function viewHome(app){
   const pop = [...S.DRAMAS].sort((a,b)=>b.pop-a.pop);
@@ -125,7 +136,8 @@ export async function viewHome(app){
     <div class="cta"><div><span class="eyebrow">Your watchlist is waiting</span><h2>Never forget the drama someone told you to watch.</h2><p>Save it now. Obsess over it later.</p></div>
       ${S.me?`<a class="btn" href="#my-list">Open my list</a>`:`<button class="btn" data-act="signup">Create my profile</button>`}</div>
   </div>`;
-  api("feed").then(f=>{ const el=$("#feed"); if(!el) return;
+  if (!S.me) { $("#feed").outerHTML = lockedHtml("Reviews are for members", "Create your free profile to read what fans are saying, see what your friends are watching and share your own reviews."); }
+  else api("feed").then(f=>{ const el=$("#feed"); if(!el) return;
     el.innerHTML = f.length ? f.slice(0,12).map(r=>reviewCard(r,{big:true})).join("") : `<div class="empty small">No reviews yet. Open any drama and be the first to review it.</div>`;
   }).catch(()=>{ const el=$("#feed"); if(el) el.innerHTML=`<div class="empty small">Reviews will show here once the community starts writing.</div>`; });
   if (S.me) api("activity").then(items=>{ const el=$("#friendsAct"); if(!el) return;
@@ -231,6 +243,11 @@ export async function viewDetail(app, id){
   </div>`;
   try {
     const revs = await api(`reviews/${encodeURIComponent(id)}`);
+    if (revs.locked) {
+      if (revs.rated) $("#communityScore").innerHTML = `<span class="score-big community">${starSvg("var(--pink)")}${revs.avg.toFixed(1)} <small>Nunchi · ${revs.rated}</small></span>`;
+      $("#dramaReviews").outerHTML = lockedHtml(revs.count ? `${revs.count} review${revs.count===1?"":"s"} from the community` : "Be the first to review it", "Reviews and profiles are only visible to members. Create your free profile to read them and add your own.");
+      return;
+    }
     const mine = S.me && revs.find(r=>r.uid===S.me.uid);
     if (mine && $("#reviewText")) { $("#reviewText").value = mine.text || ""; $("#spoiler").checked = !!mine.spoiler; }
     const rated = revs.filter(r=>r.rating);
@@ -247,6 +264,7 @@ export function viewRanking(app){
 
 /* ---------- community ---------- */
 export async function viewCommunity(app){
+  if (!S.me) return viewLocked(app, "Find your drama people", "Create your free profile to meet other fans, follow friends, and see their reviews and what they've watched.");
   app.innerHTML = `<div class="wrap"><div class="page-head"><span class="eyebrow">The community</span><h1>Find your drama people</h1><p>Follow fans to see what they're watching, like their reviews and join the conversation.</p></div>
     <div class="search-bar member-search"><svg aria-hidden="true"><use href="#search"/></svg><input id="memberQ" type="search" placeholder="Search by name or @username" aria-label="Search members"></div>
     <div id="members" class="members"><div class="empty small">Loading members…</div></div></div>`;
@@ -283,6 +301,7 @@ export function viewMyList(app){
 
 /* ---------- profile ---------- */
 export async function viewProfile(app, handle){
+  if (!S.me) return viewLocked(app, "This profile is private", "Only members can see other people's profiles, reviews and lists. It's free and takes a minute.");
   app.innerHTML = `<div class="wrap"><div class="empty small">Loading profile…</div></div>`;
   let p; try { p = await api(`u/${encodeURIComponent(handle)}`); } catch(e){ app.innerHTML = `<div class="wrap"><div class="empty"><img src="/star.png" alt="">${esc(e.message)}</div></div>`; return; }
   const mine = S.me && S.me.handle === p.handle;

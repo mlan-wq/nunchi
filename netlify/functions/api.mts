@@ -79,6 +79,10 @@ export default async (req: Request, _context: Context) => {
   };
   const [a, b, c, d] = parts;
 
+  // Profiles, reviews and activity are for members only; the catalog itself is public (static files).
+  const MEMBERS_ONLY = new Set(["feed", "comments", "u", "members", "media", "activity"]);
+  if (method === "GET" && MEMBERS_ONLY.has(a) && !(await authed())) return err(401, "Create a free profile to see the community.");
+
   // ---------- me ----------
   if (a === "me" && !b && method === "GET") {
     const me = await authed(); if (!me) return err(401, "Log in to see your profile.");
@@ -164,6 +168,11 @@ export default async (req: Request, _context: Context) => {
   if (a === "reviews" && b && method === "GET") {
     const me = await authed();
     const revs = await Promise.all((await keys(`reviews/${b}/`)).slice(0, 200).map(k => getJSON(k)));
+    if (!me) { // visitors only get the totals, never who wrote what
+      const rated = revs.filter((r: any) => r?.rating);
+      return json({ locked: true, count: revs.filter((r: any) => r?.text).length, rated: rated.length,
+        avg: rated.length ? rated.reduce((s: number, r: any) => s + r.rating, 0) / rated.length : null });
+    }
     return json((await enrich(revs, me?.uid)).sort((x: any, y: any) => (y.likes - x.likes) || (y.at - x.at)));
   }
   if (a === "feed" && method === "GET") {
