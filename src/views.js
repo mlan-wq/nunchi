@@ -1,5 +1,6 @@
 // UI components and views for Nunchi. Imported by app.js.
 import { S, $, esc, hash, starSvg, IMG, PLATFORMS, COUNTRY, GRADS, STATUS, plats, weighted, byWeighted, timeAgo, api, AVATARS, BANNERS } from "./core.js";
+import { BADGE_ART } from "./icons.js";
 
 /* ---------- small components ---------- */
 export function posterHtml(d, tag){
@@ -68,19 +69,19 @@ export function badgesFor(p, reviewsCount){
   const oldies = done.filter(d=>d.year<2010).length;
   const rated = list.filter(([,e])=>e.rating).length;
   return [
-    ["🎬","First finale","Finished your first K-drama", done.length>=1],
-    ["🍿","Binge royalty","Finished 10 K-dramas", done.length>=10],
-    ["👑","Drama veteran","Finished 50 K-dramas", done.length>=50],
-    ["✍️","Critic","Wrote your first review", reviewsCount>=1],
-    ["🖋️","Pen of gold","Wrote 10 reviews", reviewsCount>=10],
-    ["⭐","Star giver","Rated 25 dramas", rated>=25],
-    ["💎","Hidden gem hunter","Finished 3 hidden gems", gems>=3],
-    ["🏯","Joseon scholar","Finished 3 historical dramas", hist>=3],
-    ["🧭","Genre explorer","Finished dramas in 6 genres", genres.size>=6],
-    ["📼","Classic soul","Finished 3 dramas from before 2010", oldies>=3],
-    ["🤝","Social butterfly","Following 5 people", (p.followingCount||0)>=5],
-    ["💜","Fan favorite","10 people follow you", (p.followers||0)>=10]
-  ].map(([icon,name,desc,got])=>({icon,name,desc,got}));
+    ["first-finale","First finale","Finished your first K-drama", done.length>=1],
+    ["binge","Binge royalty","Finished 10 K-dramas", done.length>=10],
+    ["veteran","Drama veteran","Finished 50 K-dramas", done.length>=50],
+    ["critic","Critic","Wrote your first review", reviewsCount>=1],
+    ["pen-gold","Pen of gold","Wrote 10 reviews", reviewsCount>=10],
+    ["star-giver","Star giver","Rated 25 dramas", rated>=25],
+    ["gem","Hidden gem hunter","Finished 3 hidden gems", gems>=3],
+    ["joseon","Joseon scholar","Finished 3 historical dramas", hist>=3],
+    ["explorer","Genre explorer","Finished dramas in 6 genres", genres.size>=6],
+    ["classic","Classic soul","Finished 3 dramas from before 2010", oldies>=3],
+    ["social","Social butterfly","Following 5 people", (p.followingCount||0)>=5],
+    ["fan-fav","Fan favorite","10 people follow you", (p.followers||0)>=10]
+  ].map(([key,name,desc,got])=>({icon:BADGE_ART[key],name,desc,got}));
 }
 
 /* ---------- home ---------- */
@@ -311,7 +312,7 @@ export async function viewProfile(app, handle){
             <span class="stat"><b>${cnt("done")}</b> finished</span><span class="stat"><b>${written.length}</b> reviews</span></div></div>
         <div class="ph-actions">${mine?`<a class="btn" href="#edit-profile">Edit profile</a><button class="btn ghost" data-act="logout">Log out</button>`:S.me?followBtn(p.handle,p.isFollowing):`<button class="btn" data-act="login">Log in to follow</button>`}</div>
       </div>
-      ${badges.some(b=>b.got)?`<div class="earned">${badges.filter(b=>b.got).map(b=>`<span class="badge-pill" title="${esc(b.desc)}">${b.icon} ${b.name}</span>`).join("")}</div>`:""}
+      ${badges.some(b=>b.got)?`<div class="earned">${badges.filter(b=>b.got).map(b=>`<span class="badge-pill" title="${esc(b.desc)}">${b.icon}${b.name}</span>`).join("")}</div>`:""}
       <div class="tabs chips-scroll">${tabs.map(([k,v,n])=>`<button class="chip" data-ptab="${k}" aria-pressed="${tab===k}">${v}<span class="n">${n}</span></button>`).join("")}</div>
       <div class="profile-body">${body}</div>
     </div>`;

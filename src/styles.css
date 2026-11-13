@@ -311,7 +311,9 @@ dialog.sheet::backdrop{background:rgba(20,21,45,0.45); backdrop-filter:blur(3px)
 
 /* ---------- v3: social, review cards, pickers, mobile ---------- */
 .avatar{background:var(--lavender-bg);}
-.bell{position:relative; font-size:17px; text-decoration:none;}
+.bell{position:relative; font-size:17px; text-decoration:none; color:var(--navy);}
+.bell .nico{width:22px; height:22px;}
+.bell .nico .f{fill:var(--lavender);}
 .bell .dot{position:absolute; top:-3px; right:-3px; min-width:18px; height:18px; padding:0 5px; border-radius:999px; background:#E0567A; color:#fff; font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:center; border:2px solid var(--bg);}
 #authSlot{display:flex; align-items:center; gap:10px;}
 
@@ -387,8 +389,11 @@ button.stat:hover{color:var(--navy);}
 .stat b{color:var(--navy); font-family:var(--display); font-size:18px;}
 .follows-you{background:var(--lavender-bg); color:var(--lavender-dark); border-radius:6px; padding:1px 6px; font-size:12px; font-weight:800;}
 .badge-pill{padding:5px 12px;}
-.b-icon{font-size:28px; width:40px; text-align:center;}
-.badge:not(.got) .b-icon{filter:grayscale(1);}
+.b-icon{width:56px; height:56px; flex-shrink:0; display:block;}
+.b-icon .medal{width:100%; height:100%; display:block;}
+.badge:not(.got) .b-icon{filter:grayscale(1); opacity:.6;}
+.badge-pill .medal{width:24px; height:24px; flex-shrink:0;}
+.badge-pill{padding:4px 12px 4px 5px !important;}
 .chips-scroll{flex-wrap:nowrap !important; overflow-x:auto; scrollbar-width:none; padding-bottom:4px;}
 .chips-scroll::-webkit-scrollbar{display:none;}
 .chips-scroll .chip{flex-shrink:0;}
@@ -446,7 +451,9 @@ legend{font-weight:800; font-size:15px; margin-bottom:10px; font-family:var(--di
     padding:6px max(6px, env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(6px, env(safe-area-inset-left,0px));}
   .tabbar a{display:flex; flex-direction:column; align-items:center; gap:2px; font-size:11px; font-weight:700; color:var(--ink-soft); padding:4px 0; border-radius:12px;}
   .tabbar a.active{color:var(--navy); background:var(--lavender-bg);}
-  .tab-ic{font-size:20px; line-height:26px; height:26px; display:flex; align-items:center;}
+  .tab-ic{height:26px; display:flex; align-items:center;}
+  .tab-ic .nico{width:25px; height:25px;}
+  .tabbar a.active .nico .f{fill:var(--lavender);}
   .tab-ic .avatar{width:26px !important; height:26px !important;}
   body{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px));}
   .toast{bottom:calc(86px + env(safe-area-inset-bottom,0px));}

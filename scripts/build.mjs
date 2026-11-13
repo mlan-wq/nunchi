@@ -103,7 +103,8 @@ await writeFile("dist/data/meta.json", JSON.stringify({ source, total: dramas.le
 console.log(`Catalog: ${dramas.length} dramas from ${source}`, perPlatform);
 
 await build({ entryPoints: ["src/app.js"], bundle: true, minify: true, format: "esm", target: "es2020", outfile: "dist/app.js" });
-for (const f of ["index.html", "styles.css", "star.png", "logo.png"]) await copyFile(`src/${f}`, `dist/${f}`);
+for (const f of ["index.html", "styles.css", "star.png", "logo.png", "manifest.webmanifest"]) await copyFile(`src/${f}`, `dist/${f}`);
 await cp("src/avatars", "dist/avatars", { recursive: true });
 await cp("src/banners", "dist/banners", { recursive: true });
+await cp("src/icons", "dist/icons", { recursive: true });
 console.log("Build done.");

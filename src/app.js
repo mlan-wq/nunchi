@@ -1,13 +1,14 @@
 import { getUser, login, signup, logout, oauthLogin, handleAuthCallback, getSettings, requestPasswordRecovery, updateUser, acceptInvite, onAuthChange } from "@netlify/identity";
 import { S, $, esc, ls, toast, api, COUNTRY, STATUS } from "./core.js";
 import { avatarHtml, commentHtml, reviewCard, thumbHtml, viewHome, viewCatalog, renderResults, catState, viewDetail, viewRanking, viewCommunity, renderMembers, viewMyList, viewProfile, openPeople, viewEditProfile, viewNotifications } from "./views.js";
+import { TAB_ICONS } from "./icons.js";
 
 /* ---------- AUTH UI ---------- */
 function renderAuthSlot(){
   const slot = $("#authSlot");
-  if (S.me) slot.innerHTML = `<a class="icon-btn bell" href="#notifications" aria-label="Notifications">🔔${S.me.unread?`<span class="dot">${S.me.unread>9?"9+":S.me.unread}</span>`:""}</a><a class="me-pill" href="#u-${esc(S.me.handle)}" title="Your profile">${avatarHtml(S.me,34)}<span>${esc(S.me.name)}</span></a>`;
+  if (S.me) slot.innerHTML = `<a class="icon-btn bell" href="#notifications" aria-label="Notifications">${TAB_ICONS.bell}${S.me.unread?`<span class="dot">${S.me.unread>9?"9+":S.me.unread}</span>`:""}</a><a class="me-pill" href="#u-${esc(S.me.handle)}" title="Your profile">${avatarHtml(S.me,34)}<span>${esc(S.me.name)}</span></a>`;
   else slot.innerHTML = `<button class="list-pill" data-act="login">Log in</button>`;
-  const tab = $("#tabMe"); if (tab) { tab.href = S.me ? `#u-${S.me.handle}` : "#login"; tab.querySelector(".tab-ic").innerHTML = S.me ? avatarHtml(S.me,26) : "👤"; tab.querySelector(".tab-label").textContent = S.me ? "Profile" : "Log in"; }
+  const tab = $("#tabMe"); if (tab) { tab.href = S.me ? `#u-${S.me.handle}` : "#login"; tab.querySelector(".tab-ic").innerHTML = S.me ? avatarHtml(S.me,26) : TAB_ICONS.me; tab.querySelector(".tab-label").textContent = S.me ? "Profile" : "Log in"; }
 }
 document.addEventListener("nunchi:me", renderAuthSlot);
 let authMode = "login", settings = null;
@@ -227,6 +228,7 @@ async function resizeImage(file, maxW, maxH){
 
 /* ---------- BOOT ---------- */
 async function boot(){
+  document.querySelectorAll(".tabbar a").forEach(a=>{ const ic=a.querySelector(".tab-ic"); if (ic && !ic.innerHTML) ic.innerHTML = TAB_ICONS[a.dataset.v] || ""; });
   try { S.CAT = await (await fetch("/data/dramas.json")).json(); } catch { S.CAT = {source:"seed", regions:["US"], dramas:[]}; }
   S.DRAMAS = S.CAT.dramas; S.BYID = new Map(S.DRAMAS.map(d=>[d.id,d]));
   const guess = (navigator.language||"").split("-")[1]?.toUpperCase();
