@@ -513,3 +513,15 @@ textarea, input{font-family:inherit;}
 .locked-body h3{font-family:var(--display); font-size:22px; line-height:1.15; margin:0 0 6px;}
 .locked-body p{color:var(--ink-soft); margin:0 0 16px; font-size:14.5px;}
 .locked-actions{display:flex; gap:10px; justify-content:center; flex-wrap:wrap;}
+
+/* profile ratings: filters, sort, each person's stars */
+.p-tools{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin:4px 0 18px;}
+.star-filter{display:flex; gap:8px; min-width:0; max-width:100%; overflow-x:auto;}
+.star-filter .chip{font-size:13px; padding:7px 13px;}
+.sort-sel{display:flex; align-items:center; gap:8px; font-size:13px; font-weight:700; color:var(--ink-soft);}
+.sort-sel select{font:inherit; font-weight:700; color:var(--navy); padding:7px 12px;}
+.their-rating{display:flex; align-items:center; gap:6px; margin:5px 0 2px; font-size:13.5px;}
+.their-rating .mini-stars .star{width:15px; height:15px;}
+.their-rating b{font-family:var(--display); color:var(--lavender-dark);}
+.their-rating.none span{color:var(--ink-soft); font-size:12.5px; font-weight:600;}
+@media (max-width:600px){ .p-tools{flex-direction:column; align-items:stretch;} .sort-sel select{flex:1;} .star-filter{flex-wrap:nowrap;} }

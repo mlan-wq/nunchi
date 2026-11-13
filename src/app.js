@@ -140,6 +140,7 @@ document.addEventListener("input", e=>{
 });
 document.addEventListener("change", async e=>{
   const t=e.target;
+  if (t.id==="pSort"){ S.profileSort=t.value; rerender(); return; }
   if (t.id==="region"){ S.region=t.value; ls.set("nunchi:region",S.region); catState.plat="all"; route(); }
   if (t.id==="catGenre"){ catState.genre=t.value; catState.limit=60; renderResults(); }
   if (t.id==="catDecade"){ catState.decade=t.value; catState.limit=60; renderResults(); }
@@ -172,7 +173,8 @@ document.addEventListener("click", async e=>{
     document.querySelectorAll("#platChips .chip").forEach(c=>c.setAttribute("aria-pressed", c.dataset.plat===catState.plat)); renderResults(); }
   if (b.dataset.genre){ Object.assign(catState,{genre:b.dataset.genre, q:"", plat:"all", limit:60}); go("#catalog"); }
   if (b.dataset.tab){ S.listTab=b.dataset.tab; route(); }
-  if (b.dataset.ptab){ S.profileTab=b.dataset.ptab; rerender(); }
+  if (b.dataset.ptab){ S.profileTab=b.dataset.ptab; S.profileStars="all"; rerender(); }
+  if (b.dataset.pstars){ S.profileStars=b.dataset.pstars; rerender(); }
   if (b.dataset.people){ const [kind, h] = b.dataset.people.split("|"); openPeople(kind, h); }
   if (b.dataset.status && id){
     const cur = S.me?.list?.[id]?.status; const next = cur===b.dataset.status ? "none" : b.dataset.status;
@@ -180,7 +182,7 @@ document.addEventListener("click", async e=>{
   }
   if (b.dataset.rate!==undefined && id){
     const txt=$("#reviewText")?.value;
-    if (await setList(id,{rating:+b.dataset.rate}, +b.dataset.rate?`Rated ${b.dataset.rate} stars`:"Rating cleared")) { await rerender(); if(txt && $("#reviewText")) $("#reviewText").value=txt; }
+    if (await setList(id,{rating:+b.dataset.rate}, +b.dataset.rate?`Rated ${b.dataset.rate} star${+b.dataset.rate===1?"":"s"}`:"Rating cleared")) { await rerender(); if(txt && $("#reviewText")) $("#reviewText").value=txt; }
   }
   if (act==="saveReview" && id){
     const text = $("#reviewText").value.trim();

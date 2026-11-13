@@ -300,6 +300,37 @@ export function viewMyList(app){
 }
 
 /* ---------- profile ---------- */
+const STAR_FILTERS = [["all","All"],["5","★ 5"],["4","★ 4+"],["3","★ 3+"],["low","★ 2 or less"],["none","Not rated"]];
+const SORTS = [["recent","Most recent"],["high","Most stars first"],["low","Fewest stars first"],["title","Title A–Z"],["newest","Newest dramas"],["oldest","Oldest dramas"],["score","Highest community score"]];
+function sortProfile(items, keepOrder=false){
+  const f = S.profileStars, r = x => x.e?.rating || 0;
+  let out = items.filter(x => f==="all" || (f==="none" ? !r(x) : f==="low" ? r(x) && r(x)<=2 : r(x) >= +f));
+  const by = {
+    recent: (a,b)=>(b.e?.at||0)-(a.e?.at||0),
+    high: (a,b)=>r(b)-r(a) || (b.e?.at||0)-(a.e?.at||0),
+    low: (a,b)=>(r(a)||9)-(r(b)||9) || (b.e?.at||0)-(a.e?.at||0),
+    title: (a,b)=>(a.d?.title||"").localeCompare(b.d?.title||""),
+    newest: (a,b)=>(b.d?.year||0)-(a.d?.year||0),
+    oldest: (a,b)=>(a.d?.year||0)-(b.d?.year||0),
+    score: (a,b)=>(b.d?.score||0)-(a.d?.score||0)
+  }[S.profileSort];
+  if (by && !(keepOrder && S.profileSort==="recent")) out = [...out].sort(by);
+  return out;
+}
+function profileTools(tab, total){
+  if (!total) return "";
+  return `<div class="p-tools">
+    <div class="chips-scroll star-filter" role="group" aria-label="Filter by stars">${STAR_FILTERS.filter(([k])=>!(tab==="rated"||tab==="reviews") || k!=="none").map(([k,v])=>`<button class="chip" data-pstars="${k}" aria-pressed="${S.profileStars===k}">${v}</button>`).join("")}</div>
+    <label class="sort-sel"><span>Sort</span><select class="chip" id="pSort">${SORTS.map(([k,v])=>`<option value="${k}" ${S.profileSort===k?"selected":""}>${v}</option>`).join("")}</select></label>
+  </div>`;
+}
+function profileCard(d, e, who){
+  const r = e?.rating;
+  return `<a class="card" href="#drama-${d.id}">${posterHtml(d)}
+    <div class="t-title">${esc(d.title)}</div>
+    <div class="their-rating ${r?"":"none"}">${r?`${starsRow(r)}<b>${r % 1 ? r.toFixed(1) : r}</b>`:`<span>Not rated yet</span>`}</div>
+    <div class="t-meta">${esc(d.genres[0]||"Drama")} · ${d.year} · ${starSvg("var(--line)")}<span>${d.score.toFixed(1)}</span></div></a>`;
+}
 export async function viewProfile(app, handle){
   if (!S.me) return viewLocked(app, "This profile is private", "Only members can see other people's profiles, reviews and lists. It's free and takes a minute.");
   app.innerHTML = `<div class="wrap"><div class="empty small">Loading profile…</div></div>`;
@@ -311,12 +342,21 @@ export async function viewProfile(app, handle){
   const written = p.reviews.filter(r=>r.text);
   const badges = badgesFor({...p, followingCount:p.following}, written.length);
   const favs = p.favorites.map(id=>S.BYID.get(id)).filter(Boolean);
-  const tabs = [["favorites",`Favorites`,favs.length],["reviews","Reviews",p.reviews.length],["done","Finished",cnt("done")],["watching","Watching",cnt("watching")],["want","Want to watch",cnt("want")],["badges","Badges",badges.filter(b=>b.got).length]];
-  const tab = S.profileTab;
+  const rated = entries.filter(([,e])=>e.rating);
+  const tabs = [["favorites",`Favorites`,favs.length],["rated","Ratings",rated.length],["reviews","Reviews",written.length],["done","Finished",cnt("done")],["watching","Watching",cnt("watching")],["want","Want to watch",cnt("want")],["badges","Badges",badges.filter(b=>b.got).length]];
+  const tab = tabs.some(t=>t[0]===S.profileTab) ? S.profileTab : "favorites";
+  const who = mine ? "You" : esc(p.name.split(" ")[0]);
   let body = "";
-  if (tab==="favorites") body = favs.length?`<div class="grid">${favs.map(d=>cardHtml(d)).join("")}</div>`:`<div class="empty small">${mine?"Tap ♡ Favorite on any drama to add it here.":"No favorites picked yet."}</div>`;
-  else if (STATUS[tab]) { const l = entries.filter(([,e])=>e.status===tab).sort((a,b)=>b[1].at-a[1].at); body = l.length?`<div class="grid">${l.map(([id])=>S.BYID.get(id)).filter(Boolean).map(d=>cardHtml(d)).join("")}</div>`:`<div class="empty small">Nothing here yet.</div>`; }
-  else if (tab==="reviews") { const rs=[...p.reviews].sort((a,b)=>b.at-a.at); body = rs.length?`<div class="review-grid">${rs.map(r=>reviewCard(r)).join("")}</div>`:`<div class="empty small">No ratings or reviews yet.</div>`; }
+  if (tab==="reviews") {
+    const rs = sortProfile(written.map(r=>({r, d:S.BYID.get(r.dramaId), e:{rating:r.rating, at:r.at}})));
+    body = profileTools(tab, written.length) + (rs.length?`<div class="review-grid">${rs.map(x=>reviewCard(x.r)).join("")}</div>`:`<div class="empty small">${S.profileStars==="all"?"No reviews yet.":"No reviews match this filter."}</div>`);
+  }
+  else if (tab!=="badges") {
+    const base = tab==="favorites" ? p.favorites.map(id=>[id, p.list?.[id]||{}]) : tab==="rated" ? rated : entries.filter(([,e])=>e.status===tab);
+    const items = sortProfile(base.map(([id,e])=>({d:S.BYID.get(id), e})).filter(x=>x.d), tab==="favorites");
+    const emptyMsg = base.length && !items.length ? "Nothing matches this filter." : tab==="favorites" ? (mine?"Tap ♡ Favorite on any drama to add it here.":"No favorites picked yet.") : tab==="rated" ? "No ratings yet." : "Nothing here yet.";
+    body = profileTools(tab, base.length) + (items.length?`<div class="grid">${items.map(x=>profileCard(x.d, x.e, who)).join("")}</div>`:`<div class="empty small">${emptyMsg}</div>`);
+  }
   else body = `<div class="badges">${badges.map(b=>`<div class="badge ${b.got?"got":""}"><span class="b-icon">${b.icon}</span><div><b>${b.name}</b><span>${b.desc}</span></div></div>`).join("")}</div>`;
   app.innerHTML = `
     <div class="profile-banner" style="background-image:url('${esc(p.banner||"/banners/canola-fields.jpg")}')"></div>

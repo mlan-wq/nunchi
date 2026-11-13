@@ -20,7 +20,7 @@ export const STATUS = {want:"Want to watch", watching:"Watching", done:"Finished
 export const IMG = (p, size="w342") => p ? `https://image.tmdb.org/t/p/${size}${p}` : null;
 
 
-export const S = { CAT:{source:"seed", regions:["US"], dramas:[]}, DRAMAS:[], BYID:new Map(), region:"US", me:null, identityOn:true, listTab:"all", profileTab:"favorites", members:null };
+export const S = { CAT:{source:"seed", regions:["US"], dramas:[]}, DRAMAS:[], BYID:new Map(), region:"US", me:null, identityOn:true, listTab:"all", profileTab:"favorites", profileSort:"recent", profileStars:"all", members:null };
 export const AVATARS = Array.from({length:24}, (_,i)=>`a${String(i+1).padStart(2,"0")}`);
 export const BANNERS = [
   {id:"canola-fields", name:"Canola fields"}, {id:"tangerine-grove", name:"Tangerine grove"}, {id:"first-snow", name:"First snow"},
