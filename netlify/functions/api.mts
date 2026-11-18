@@ -1,6 +1,6 @@
 // Nunchi API: profiles, follows, watchlists, ratings, reviews, likes, comments, notifications and profile images, stored in Netlify Blobs.
 import { getStore } from "@netlify/blobs";
-import { getUser, verifyRequestOrigin } from "@netlify/identity";
+import { getUser, verifyRequestOrigin, admin } from "@netlify/identity";
 import type { Config, Context } from "@netlify/functions";
 
 const store = () => getStore({ name: "nunchi", consistency: "strong" });
@@ -31,7 +31,21 @@ const card = (p: Profile | null) => p && { uid: p.uid, handle: p.handle, name: p
 const cache = new Map<string, Promise<Profile | null>>();
 const profileCached = (uid: string) => { if (!cache.has(uid)) cache.set(uid, loadProfile(uid)); return cache.get(uid)!; };
 
-async function newProfile(user: { id: string; email?: string; name?: string }): Promise<Profile> {
+// Everyone who signed up and confirmed their email gets a profile, even if they haven't opened the site since.
+async function syncMembers() {
+  const last = Number(await S().get("meta/lastSync")) || 0;
+  if (Date.now() - last < 60_000) return;
+  await S().set("meta/lastSync", String(Date.now()));
+  try {
+    const have = new Set((await keys("profiles/")).map(k => k.split("/")[1]));
+    for (let page = 1; page <= 20; page++) {
+      const users = await admin.listUsers({ page, perPage: 100 });
+      for (const u of users) if (u.confirmedAt && !have.has(u.id)) { await newProfile(u); have.add(u.id); }
+      if (users.length < 100) break;
+    }
+  } catch (e) { console.warn("member sync skipped:", String(e)); }
+}
+async function newProfile(user: { id: string; email?: string; name?: string; createdAt?: string }): Promise<Profile> {
   const base = (user.name || user.email?.split("@")[0] || "fan").toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 14) || "fan";
   let handle = base.length >= 3 ? base : `${base}fan`;
   for (let i = 0; i < 20; i++) {
@@ -40,7 +54,7 @@ async function newProfile(user: { id: string; email?: string; name?: string }): 
     handle = `${base}${Math.floor(Math.random() * 9000 + 1000)}`;
   }
   const avatar = `/avatars/a${String(Math.floor(Math.random() * AVATAR_COUNT) + 1).padStart(2, "0")}.svg`;
-  const p: Profile = { uid: user.id, handle, name: user.name || handle, bio: "", avatar, banner: "/banners/canola-fields.jpg", favorites: [], list: {}, createdAt: Date.now() };
+  const p: Profile = { uid: user.id, handle, name: user.name || handle, bio: "", avatar, banner: "/banners/canola-fields.jpg", favorites: [], list: {}, createdAt: user.createdAt ? Date.parse(user.createdAt) || Date.now() : Date.now() };
   await saveProfile(p);
   return p;
 }
@@ -272,6 +286,7 @@ export default async (req: Request, _context: Context) => {
   }
   if (a === "members" && method === "GET") {
     const me = await authed();
+    await syncMembers();
     const myFollows = me ? new Set((await keys(`follows/${me.uid}/`)).map(k => k.split("/")[2])) : new Set();
     const ps = (await Promise.all((await keys("profiles/")).slice(0, 500).map(k => getJSON<Profile>(k)))).filter(Boolean) as Profile[];
     const counts = await Promise.all(ps.map(p => keys(`followers/${p.uid}/`)));

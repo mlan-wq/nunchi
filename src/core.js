@@ -40,8 +40,11 @@ export const weighted = d => (d.votes*d.score + 40*3.6)/(d.votes+40);          /
 export const byWeighted = (a,b) => weighted(b)-weighted(a);
 export const timeAgo = t => { const s=(Date.now()-t)/1000; if(s<60) return "just now"; if(s<3600) return `${Math.floor(s/60)}m ago`; if(s<86400) return `${Math.floor(s/3600)}h ago`; if(s<2592000) return `${Math.floor(s/86400)}d ago`; return new Date(t).toLocaleDateString(); };
 
-export async function api(path, opts={}){
+let refresher = null; // set by app.js: refreshes an expired login token
+export const setRefresher = f => { refresher = f; };
+export async function api(path, opts={}, retried=false){
   const r = await fetch(`/api/${path}`, { credentials:"same-origin", ...opts, headers:{ ...(opts.body && !(opts.body instanceof Blob) ? {"content-type":"application/json"} : {}), ...(opts.headers||{}) } });
+  if (r.status===401 && !retried && refresher && S.me) { if (await refresher().catch(()=>null)) return api(path, opts, true); }
   const data = await r.json().catch(()=>({}));
   if (!r.ok) throw Object.assign(new Error(data.error || `Something went wrong (${r.status}).`), {status:r.status});
   return data;

@@ -1,5 +1,6 @@
-import { getUser, login, signup, logout, oauthLogin, handleAuthCallback, getSettings, requestPasswordRecovery, updateUser, acceptInvite, onAuthChange } from "@netlify/identity";
-import { S, $, esc, ls, toast, api, COUNTRY, STATUS } from "./core.js";
+import { restoreSessionCookies, hasSavedSession } from "./session.js";
+import { getUser, login, signup, logout, oauthLogin, handleAuthCallback, getSettings, requestPasswordRecovery, updateUser, acceptInvite, onAuthChange, refreshSession } from "@netlify/identity";
+import { S, $, esc, ls, toast, api, setRefresher, COUNTRY, STATUS } from "./core.js";
 import { avatarHtml, commentHtml, reviewCard, thumbHtml, viewHome, viewCatalog, renderResults, catState, viewDetail, viewRanking, viewCommunity, renderMembers, viewMyList, viewProfile, openPeople, viewEditProfile, viewNotifications } from "./views.js";
 import { TAB_ICONS } from "./icons.js";
 
@@ -61,7 +62,12 @@ async function submitAuth(e){
 }
 let pendingToken = null;
 async function loadMe(){
-  try { const u = await getUser(); S.me = u ? await api("me") : null; }
+  try {
+    restoreSessionCookies();
+    const u = await getUser();
+    if (u) { try { await refreshSession(); } catch {} }
+    S.me = u ? await api("me").catch(async e => { if (e.status!==401 || !hasSavedSession()) throw e; await refreshSession().catch(()=>{}); return api("me"); }) : null;
+  }
   catch(e){ S.me = null; if (e?.name==="MissingIdentityError") S.identityOn = false; }
   renderAuthSlot();
 }
@@ -83,8 +89,23 @@ async function route(){
   else { await viewHome(app); v="home"; }
   document.querySelectorAll("[data-v]").forEach(a=>a.classList.toggle("active", a.dataset.v===v));
 }
-let prevHash = location.hash;
-window.addEventListener("hashchange", ()=>{ const sameProfile = prevHash.startsWith("#u-") && prevHash===location.hash; prevHash = location.hash; route().then(()=>{ if(!sameProfile) window.scrollTo(0,0); }); });
+// Remember where you were on each page, so "back" returns to the same spot (catalog, home, lists…).
+if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+const scrollMemory = new Map();
+let prevHash = location.hash, fromHash = "", goingBack = false;
+window.addEventListener("popstate", ()=>{ goingBack = true; });
+window.addEventListener("hashchange", async ()=>{
+  scrollMemory.set(prevHash, lastScrollY);
+  const back = goingBack; goingBack = false; fromHash = prevHash; prevHash = location.hash;
+  await route();
+  const y = back ? scrollMemory.get(location.hash) : 0;
+  if (y) { // images and lists can take a moment to lay out; retry until the page is tall enough
+    for (let i = 0; i < 20 && document.documentElement.scrollHeight < y + innerHeight; i++) await new Promise(r => setTimeout(r, 50));
+    window.scrollTo(0, y);
+  } else window.scrollTo(0, 0);
+});
+let lastScrollY = 0;
+window.addEventListener("scroll", ()=>{ lastScrollY = scrollY; }, {passive:true});
 const go = h => { if (location.hash===h) route(); else location.hash = h; };
 async function rerender(){ const y = scrollY; await route(); scrollTo(0,y); }
 
@@ -156,9 +177,12 @@ function keepFormRerender(){
   viewEditProfile($("#app")); if (keep.n!==undefined){ $("#pName").value=keep.n; $("#pHandle").value=keep.h; $("#pBio").value=keep.b; } scrollTo(0,y);
 }
 document.addEventListener("click", async e=>{
-  const b = e.target.closest("button, a[data-act]"); if(!b) return;
+  const back = e.target.closest("a.back");
+  if (back && fromHash && (fromHash===back.getAttribute("href") || fromHash==="#catalog")) { e.preventDefault(); history.back(); return; }
+  const b = e.target.closest("button, a[data-act], a[data-jump]"); if(!b) return;
   const id = decodeURIComponent(location.hash).startsWith("#drama-") ? decodeURIComponent(location.hash).slice(7) : null;
   const act = b.dataset.act;
+  if (b.dataset.jump){ e.preventDefault(); document.getElementById(b.dataset.jump)?.scrollIntoView({behavior:"smooth"}); setTimeout(()=>$("#reviewText")?.focus({preventScroll:true}), 500); return; }
   if (act==="closeDialog") { $("#authDialog").close(); return; }
   if (act==="login") openAuth("login");
   if (act==="signup") openAuth("signup");
@@ -173,6 +197,7 @@ document.addEventListener("click", async e=>{
     document.querySelectorAll("#platChips .chip").forEach(c=>c.setAttribute("aria-pressed", c.dataset.plat===catState.plat)); renderResults(); }
   if (b.dataset.genre){ Object.assign(catState,{genre:b.dataset.genre, q:"", plat:"all", limit:60}); go("#catalog"); }
   if (b.dataset.tab){ S.listTab=b.dataset.tab; route(); }
+  if (b.dataset.msort){ S.memberSort=b.dataset.msort; document.querySelectorAll("[data-msort]").forEach(c=>c.setAttribute("aria-pressed", c===b)); renderMembers(); }
   if (b.dataset.ptab){ S.profileTab=b.dataset.ptab; S.profileStars="all"; rerender(); }
   if (b.dataset.pstars){ S.profileStars=b.dataset.pstars; rerender(); }
   if (b.dataset.people){ const [kind, h] = b.dataset.people.split("|"); openPeople(kind, h); }
@@ -182,12 +207,14 @@ document.addEventListener("click", async e=>{
   }
   if (b.dataset.rate!==undefined && id){
     const txt=$("#reviewText")?.value;
-    if (await setList(id,{rating:+b.dataset.rate}, +b.dataset.rate?`Rated ${b.dataset.rate} star${+b.dataset.rate===1?"":"s"}`:"Rating cleared")) { await rerender(); if(txt && $("#reviewText")) $("#reviewText").value=txt; }
+    const n = +b.dataset.rate, msg = n ? `Saved! You gave it ${n} star${n===1?"":"s"}` : "Rating cleared";
+    if (await setList(id,{rating:n}, n ? null : msg)) { S.flash = {id, kind:"rate", msg}; await rerender(); S.flash = null; if(txt && $("#reviewText")) $("#reviewText").value=txt; }
   }
   if (act==="saveReview" && id){
     const text = $("#reviewText").value.trim();
     if (!text && !S.me.list[id]?.rating) return toast("Add a rating or write a few words first.");
-    if (await setList(id,{review:text, spoiler:$("#spoiler").checked}, text?"Review posted ✨":"Review removed")) rerender();
+    const msg = text ? "Your review is posted ✨ Everyone in the community can read it now." : "Review removed";
+    if (await setList(id,{review:text, spoiler:$("#spoiler").checked}, text?"Review posted ✨":"Review removed")) { S.flash = {id, kind:"review", msg}; await rerender(); S.flash = null; }
   }
   if (b.dataset.fav || b.dataset.unfav){
     const ok = await toggleFav(b.dataset.fav || b.dataset.unfav, !!b.dataset.fav);
@@ -248,7 +275,10 @@ async function boot(){
     else if (cb) toast("You're in!");
   } catch(e){ if (e?.name==="MissingIdentityError") S.identityOn=false; }
   await loadMe();
-  try { onAuthChange(()=>loadMe()); } catch {}
+  try { onAuthChange(ev=>{ if (ev!=="token_refresh") loadMe(); }); } catch {}
+  // force a fresh token (the stored one may have expired while the app slept) and retry once
+  setRefresher(async ()=>{ restoreSessionCookies(); const u = await getUser(); if (!u) return null; await refreshSession().catch(()=>{}); return true; });
+  document.addEventListener("visibilitychange", ()=>{ if (document.visibilityState==="visible" && S.me) refreshSession().catch(()=>{}); });
   await route();
   setInterval(async ()=>{ if (S.me && document.visibilityState==="visible") { try { const m = await api("me"); if (m.unread!==S.me.unread) { S.me.unread = m.unread; renderAuthSlot(); } } catch {} } }, 60000);
 }

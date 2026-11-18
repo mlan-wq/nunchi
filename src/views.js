@@ -220,6 +220,11 @@ export async function viewDetail(app, id){
         <p class="synopsis">${esc(d.synopsis || "No synopsis yet.")}</p>
         <div class="status-row">${Object.entries(STATUS).map(([k,v])=>`<button class="chip" data-status="${k}" aria-pressed="${e.status===k}">${e.status===k?"✓ ":""}${v}</button>`).join("")}
           <button class="chip fav ${isFav?"on":""}" data-${isFav?"unfav":"fav"}="${id}" aria-pressed="${!!isFav}">${isFav?"♥ Favorite":"♡ Favorite"}</button></div>
+        <div class="quick-rate">
+          <span class="qr-label">${e.rating?"Your rating":"Rate it"}</span>
+          <div class="rate" role="radiogroup" aria-label="Your rating">${[1,2,3,4,5].map(i=>`<button class="rate-star" ${S.me?`data-rate="${i}"`:`data-act="login"`} role="radio" aria-checked="${e.rating===i}" aria-label="${i} star${i>1?"s":""}">${starSvg(i<=(e.rating||0)?"var(--lavender-dark)":"var(--line)","star big")}</button>`).join("")}</div>
+          ${S.flash?.id===id && S.flash.kind==="rate" ? `<span class="saved-note">✓ ${esc(S.flash.msg)}</span>` : ""}${e.rating ? `<a class="link" href="#reviewsBlock" data-jump="reviewsBlock">${e.review?"Edit your review":"Write a review"} ↓</a>` : ""}
+        </div>
         <div class="where"><h2>Where to watch in ${esc(COUNTRY[S.region]||S.region)}</h2>
           ${ps.length?`<div class="where-list">${ps.map(p=>{const P=PLATFORMS[p]; return `<a class="where-item" href="${P.url(qs)}" target="_blank" rel="noopener">
             <span class="wi-left"><span class="logo-dot" style="background:${P.color}">${P.letter}</span><span>${P.name}<small>Included with subscription</small></span></span><span class="go">Open ↗</span></a>`}).join("")}</div>`
@@ -234,7 +239,8 @@ export async function viewDetail(app, id){
       <div class="my-review">${S.me?`
         <div class="mr-head">${avatarHtml(S.me,40)}<div><b>Your take on ${esc(d.title)}</b><div class="rate" role="radiogroup" aria-label="Your rating">${[1,2,3,4,5].map(i=>`<button class="rate-star" data-rate="${i}" role="radio" aria-checked="${e.rating===i}" aria-label="${i} star${i>1?"s":""}">${starSvg(i<=(e.rating||0)?"var(--lavender-dark)":"var(--line)","star big")}</button>`).join("")}${e.rating?`<button class="link" data-rate="0">Clear</button>`:""}</div></div></div>
         <textarea id="reviewText" maxlength="2000" rows="3" placeholder="What did you think? Which scene got you?"></textarea>
-        <div class="review-actions"><label class="check"><input type="checkbox" id="spoiler"> Contains spoilers</label><button class="btn" data-act="saveReview">Post review</button></div>`
+        <div class="review-actions"><label class="check"><input type="checkbox" id="spoiler"> Contains spoilers</label><button class="btn" data-act="saveReview">${e.review?"Update review":"Post review"}</button></div>
+        ${S.flash?.id===id && S.flash.kind==="review" ? `<div class="saved-banner" role="status">✓ ${esc(S.flash.msg)}</div>` : ""}`
         : `<div class="login-prompt">${avatarHtml(null)}<div><b>Rate and review ${esc(d.title)}</b><br><span>Log in to add it to your profile and your list.</span></div><button class="btn" data-act="login">Log in</button></div>`}</div>
       <div class="review-grid" id="dramaReviews"><div class="empty small">Loading reviews…</div></div>
     </section>
@@ -267,17 +273,21 @@ export async function viewCommunity(app){
   if (!S.me) return viewLocked(app, "Find your drama people", "Create your free profile to meet other fans, follow friends, and see their reviews and what they've watched.");
   app.innerHTML = `<div class="wrap"><div class="page-head"><span class="eyebrow">The community</span><h1>Find your drama people</h1><p>Follow fans to see what they're watching, like their reviews and join the conversation.</p></div>
     <div class="search-bar member-search"><svg aria-hidden="true"><use href="#search"/></svg><input id="memberQ" type="search" placeholder="Search by name or @username" aria-label="Search members"></div>
+    <div class="tabs member-sort">${[["new","Newest members"],["popular","Most followed"]].map(([k,v])=>`<button class="chip" data-msort="${k}" aria-pressed="${(S.memberSort||"new")===k}">${v}</button>`).join("")}</div>
     <div id="members" class="members"><div class="empty small">Loading members…</div></div></div>`;
   try { S.members = await api("members"); renderMembers(); }
   catch { $("#members").innerHTML = `<div class="empty small">Profiles couldn't load right now.</div>`; }
 }
 export function renderMembers(){
   const q = ($("#memberQ")?.value||"").trim().toLowerCase().replace(/^@/,"");
-  const ms = (S.members||[]).filter(m=>!q || m.name.toLowerCase().includes(q) || m.handle.includes(q));
+  const sort = S.memberSort || "new";
+  const ms = (S.members||[]).filter(m=>!q || m.name.toLowerCase().includes(q) || m.handle.includes(q))
+    .sort((a,b)=> sort==="new" ? (b.createdAt||0)-(a.createdAt||0) : (b.followers-a.followers) || (b.createdAt||0)-(a.createdAt||0));
+  const isNew = m => Date.now()-(m.createdAt||0) < 7*864e5;
   $("#members").innerHTML = ms.length ? ms.map(m=>`<div class="member">
       <a href="#u-${esc(m.handle)}" class="m-banner" style="background-image:url('${esc(m.banner||"/banners/canola-fields.jpg")}')" aria-label="${esc(m.name)}'s profile"></a>
       <div class="m-body"><div class="m-top"><a href="#u-${esc(m.handle)}">${avatarHtml(m,60)}</a>${followBtn(m.handle,m.isFollowing)}</div>
-      <a href="#u-${esc(m.handle)}" class="m-name">${esc(m.name)}</a><div class="handle">@${esc(m.handle)}</div>
+      <a href="#u-${esc(m.handle)}" class="m-name">${esc(m.name)}</a>${isNew(m)?`<span class="new-pill">New</span>`:""}<div class="handle">@${esc(m.handle)}${m.createdAt?` · joined ${timeAgo(m.createdAt)}`:""}</div>
       ${m.bio?`<p class="m-bio">${esc(m.bio)}</p>`:""}<div class="m-stats"><span><b>${m.followers}</b> follower${m.followers===1?"":"s"}</span><span><b>${m.finished}</b> finished</span><span><b>${m.ratings}</b> rated</span></div>
       <div class="m-favs">${m.favorites.slice(0,5).map(id=>S.BYID.get(id)).filter(Boolean).map(d=>thumbHtml(d)).join("")}</div></div></div>`).join("")
     : `<div class="empty small">${q?"No one matches that search.":"No profiles yet."}</div>`;
