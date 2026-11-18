@@ -1,5 +1,5 @@
 // UI components and views for Nunchi. Imported by app.js.
-import { S, $, esc, hash, starSvg, IMG, PLATFORMS, COUNTRY, GRADS, STATUS, plats, weighted, byWeighted, timeAgo, api, AVATARS, BANNERS } from "./core.js";
+import { S, $, esc, hash, starSvg, IMG, PLATFORMS, COUNTRY, GRADS, STATUS, plats, weighted, byWeighted, timeAgo, api, AVATARS, AVATAR_GROUPS, BANNERS } from "./core.js";
 import { BADGE_ART } from "./icons.js";
 
 /* ---------- small components ---------- */
@@ -26,7 +26,8 @@ export function rankRows(list){
     <div class="rank-body"><div class="rank-title">${esc(d.title)}</div><div class="rank-meta">${d.genres.slice(0,2).join(" · ")} · ${d.year}</div></div>
     ${platChips(d)}<div class="rank-score">${starSvg("#fff")}${d.score.toFixed(1)}</div></a>`).join("");
 }
-export const avatarSrc = u => u?.avatar || `/avatars/${AVATARS[hash(u?.handle||u?.uid||"x") % AVATARS.length]}.svg`;
+// Old illustrated presets (/avatars/aNN.svg) now show the matching new character portrait.
+export const avatarSrc = u => (u?.avatar||"").replace(/^\/avatars\/a(\d{2})\.svg$/, "/avatars/presets/char-$1.jpg") || AVATARS[hash(u?.handle||u?.uid||"x") % AVATARS.length];
 export const avatarHtml = (u, size=42) => `<img class="avatar" src="${esc(avatarSrc(u))}" alt="" width="${size}" height="${size}" style="width:${size}px;height:${size}px">`;
 export const starsRow = r => `<span class="mini-stars" aria-label="${r} out of 5">${[1,2,3,4,5].map(i=>starSvg(i<=r?"var(--lavender-dark)":i-0.5<=r?"var(--lavender)":"var(--line)")).join("")}</span>`;
 export const followBtn = (handle, following) => S.me && S.me.handle!==handle ? `<button class="btn ${following?"ghost":""} small follow-btn" data-follow="${esc(handle)}" data-on="${following?1:0}">${following?"Following":"Follow"}</button>` : "";
@@ -86,7 +87,7 @@ export function badgesFor(p, reviewsCount){
 
 /* ---------- members-only gate ---------- */
 export function lockedHtml(title, text, big=false){
-  const ghost = ["a03","a08","a12","a19"].map((a,i)=>`<div class="ghost-card"><img src="/avatars/${a}.svg" alt=""><div><i style="width:${60+i*7}%"></i><i style="width:${85-i*9}%"></i><i style="width:${50+i*5}%"></i></div></div>`).join("");
+  const ghost = ["03","08","12","19"].map((a,i)=>`<div class="ghost-card"><img src="/avatars/presets/char-${a}.jpg" alt=""><div><i style="width:${60+i*7}%"></i><i style="width:${85-i*9}%"></i><i style="width:${50+i*5}%"></i></div></div>`).join("");
   return `<div class="locked ${big?"big":""}"><div class="ghosts" aria-hidden="true">${ghost}</div>
     <div class="locked-body"><img src="/star.png" alt=""><h3>${title}</h3><p>${text}</p>
       <div class="locked-actions"><button class="btn" data-act="signup">Create my free profile</button><button class="btn ghost" data-act="login">Log in</button></div></div></div>`;
@@ -409,8 +410,10 @@ export function viewEditProfile(app){
         <img class="avatar avatar-edit" src="${esc(avatarSrc(me))}" alt="">
       </div>
       <fieldset><legend>Profile picture</legend>
-        <div class="avatar-grid">${AVATARS.map(a=>`<button type="button" class="pick ${me.avatar===`/avatars/${a}.svg`?"on":""}" data-avatar="/avatars/${a}.svg" aria-label="Avatar ${a}"><img src="/avatars/${a}.svg" alt=""></button>`).join("")}
-          <label class="pick upload" title="Upload your own photo"><span>＋<small>Upload</small></span><input type="file" accept="image/*" data-img="avatar" hidden></label></div></fieldset>
+        ${(()=>{ const cur = S.avatarTab || AVATAR_GROUPS.find(g=>g.items.includes(avatarSrc(me)))?.key || "characters"; const g = AVATAR_GROUPS.find(x=>x.key===cur) || AVATAR_GROUPS[0];
+          return `<div class="tabs chips-scroll av-tabs">${AVATAR_GROUPS.map(x=>`<button type="button" class="chip" data-avtab="${x.key}" aria-pressed="${x.key===g.key}">${x.name}<span class="n">${x.items.length}</span></button>`).join("")}</div>
+          <div class="avatar-grid">${g.items.map(a=>`<button type="button" class="pick ${avatarSrc(me)===a?"on":""}" data-avatar="${a}" aria-label="${esc(a.split("/").pop().replace(/\.jpg$/,"").replace(/^[a-z]+-/,"").replace(/-/g," "))}"><img src="${a}" alt="" loading="lazy"></button>`).join("")}
+          <label class="pick upload" title="Upload your own photo"><span>＋<small>Upload</small></span><input type="file" accept="image/*" data-img="avatar" hidden></label></div>`; })()}</fieldset>
       <fieldset><legend>Banner</legend>
         <div class="banner-grid">${BANNERS.map(b=>`<button type="button" class="pick-banner ${me.banner===`/banners/${b.id}.jpg`?"on":""}" data-banner="/banners/${b.id}.jpg"><img src="/banners/${b.id}.jpg" alt="" loading="lazy"><span>${b.name}</span></button>`).join("")}
           <label class="pick-banner upload"><span>＋ Upload your own</span><input type="file" accept="image/*" data-img="banner" hidden></label></div></fieldset>

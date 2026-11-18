@@ -197,6 +197,7 @@ document.addEventListener("click", async e=>{
     document.querySelectorAll("#platChips .chip").forEach(c=>c.setAttribute("aria-pressed", c.dataset.plat===catState.plat)); renderResults(); }
   if (b.dataset.genre){ Object.assign(catState,{genre:b.dataset.genre, q:"", plat:"all", limit:60}); go("#catalog"); }
   if (b.dataset.tab){ S.listTab=b.dataset.tab; route(); }
+  if (b.dataset.avtab){ S.avatarTab=b.dataset.avtab; keepFormRerender(); return; }
   if (b.dataset.msort){ S.memberSort=b.dataset.msort; document.querySelectorAll("[data-msort]").forEach(c=>c.setAttribute("aria-pressed", c===b)); renderMembers(); }
   if (b.dataset.ptab){ S.profileTab=b.dataset.ptab; S.profileStars="all"; rerender(); }
   if (b.dataset.pstars){ S.profileStars=b.dataset.pstars; rerender(); }

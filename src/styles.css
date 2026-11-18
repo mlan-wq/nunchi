@@ -550,3 +550,7 @@ img, svg, video{max-width:100%;}
 @media (max-width:860px){
   input, select, textarea{font-size:16px !important;}
 }
+.av-tabs{margin:0 0 12px;}
+.avatar-grid{grid-template-columns:repeat(auto-fill, minmax(76px,1fr));}
+.pick img{object-fit:cover;}
+@media (max-width:600px){ .avatar-grid{grid-template-columns:repeat(4,1fr); gap:10px;} }
