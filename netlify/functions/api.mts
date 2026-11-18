@@ -23,6 +23,8 @@ type Profile = {
 
 const S = () => store();
 async function getJSON<T = any>(key: string): Promise<T | null> { return (await S().get(key, { type: "json" })) as T | null; }
+// Newest notification key this person has seen (keys sort newest first). Older versions saved the full path.
+async function seenKey(uid: string) { return String((await S().get(`seen/${uid}`)) || "").split("/").pop() || ""; }
 async function keys(prefix: string) { return (await S().list({ prefix })).blobs.map(b => b.key); }
 async function loadProfile(uid: string) { return getJSON<Profile>(`profiles/${uid}`); }
 async function saveProfile(p: Profile) { await S().setJSON(`profiles/${p.uid}`, p); }
@@ -101,8 +103,8 @@ export default async (req: Request, _context: Context) => {
   if (a === "me" && !b && method === "GET") {
     const me = await authed(); if (!me) return err(401, "Log in to see your profile.");
     const [following, notes] = await Promise.all([keys(`follows/${me.uid}/`), keys(`notes/${me.uid}/`)]);
-    const seen = (await S().get(`seen/${me.uid}`)) || "";
-    return json({ ...me, following: following.map(k => k.split("/")[2]), unread: notes.filter(k => k.split("/")[2] < seen || !seen).length });
+    const seen = await seenKey(me.uid);
+    return json({ ...me, following: following.map(k => k.split("/")[2]), unread: notes.filter(k => !seen || k.split("/")[2] < seen).length });
   }
   if (a === "me" && !b && method === "PUT") {
     const me = await authed(); if (!me) return err(401, "Log in to edit your profile.");
@@ -265,9 +267,10 @@ export default async (req: Request, _context: Context) => {
   if (a === "notifications" && method === "GET") {
     const me = await authed(); if (!me) return err(401, "Log in to see notifications.");
     const ks = (await keys(`notes/${me.uid}/`)).sort().slice(0, 30);
-    const seen = (await S().get(`seen/${me.uid}`)) || "";
+    const seen = await seenKey(me.uid);
     const ns = await Promise.all(ks.map(async k => { const n = await getJSON(k); const key = k.split("/")[2]; return n && { ...n, unread: !seen || key < seen, user: card(await profileCached(n.from)) }; }));
-    if (ks[0]) await S().set(`seen/${me.uid}`, ks[0]);
+    const newest = ks[0]?.split("/")[2];
+    if (newest && newest !== seen) await S().set(`seen/${me.uid}`, newest);
     return json(ns.filter((n: any) => n?.user));
   }
 
