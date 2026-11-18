@@ -554,3 +554,12 @@ img, svg, video{max-width:100%;}
 .avatar-grid{grid-template-columns:repeat(auto-fill, minmax(76px,1fr));}
 .pick img{object-fit:cover;}
 @media (max-width:600px){ .avatar-grid{grid-template-columns:repeat(4,1fr); gap:10px;} }
+/* home-screen notifications prompt */
+.push-card{display:flex; gap:14px; align-items:flex-start; background:var(--lavender-bg); border-radius:20px; padding:16px 18px; margin:22px 0 4px;}
+.push-card .push-ic{flex:none; width:40px; height:40px; border-radius:50%; background:#fff; display:grid; place-items:center;}
+.push-card .push-ic svg{width:22px; height:22px;}
+.push-card b{display:block; font-size:16px;}
+.push-card p{margin:4px 0 10px; font-size:14px; line-height:1.4; opacity:.8;}
+.push-actions{display:flex; gap:8px; flex-wrap:wrap;}
+.note-badge{flex:none; width:44px; height:44px; display:grid; place-items:center;}
+.note-badge svg{width:40px; height:40px;}

@@ -2,6 +2,8 @@
 import { getStore } from "@netlify/blobs";
 import { getUser, verifyRequestOrigin, admin } from "@netlify/identity";
 import type { Config, Context } from "@netlify/functions";
+import webpush from "web-push";
+import { createHash } from "node:crypto";
 
 const store = () => getStore({ name: "nunchi", consistency: "strong" });
 const json = (data: unknown, status = 200) => Response.json(data, { status, headers: { "cache-control": "no-store" } });
@@ -62,8 +64,55 @@ async function newProfile(user: { id: string; email?: string; name?: string; cre
 }
 
 async function notify(to: string, from: string, type: string, extra: Record<string, unknown> = {}) {
-  if (to === from) return;
+  if (to === from && type !== "badge") return;
   await S().setJSON(`notes/${to}/${inv()}-${from.slice(0, 8)}`, { type, from, at: Date.now(), ...extra });
+  try { await pushTo(to, from, type, extra); } catch (e) { console.error("push failed", e); }
+}
+
+// ---------- web push (home-screen notifications) ----------
+// VAPID keys are made once and kept in the store, so no extra secret has to be set in Netlify.
+async function vapid() {
+  let k = await getJSON<{ publicKey: string; privateKey: string }>("push/vapid");
+  if (!k) { await S().setJSON("push/vapid", webpush.generateVAPIDKeys(), { onlyIfNew: true }); k = await getJSON("push/vapid"); }
+  return k!;
+}
+const subKey = (uid: string, endpoint: string) => `push/subs/${uid}/${createHash("sha256").update(endpoint).digest("hex").slice(0, 32)}`;
+const BADGE_NAMES: Record<string, string> = {
+  "first-finale": "First finale", binge: "Binge royalty", veteran: "Drama veteran", critic: "Critic", "pen-gold": "Pen of gold",
+  "star-giver": "Star giver", gem: "Hidden gem hunter", joseon: "Joseon scholar", explorer: "Genre explorer", classic: "Classic soul",
+  social: "Social butterfly", "fan-fav": "Fan favorite"
+};
+async function unreadCount(uid: string) {
+  const seen = await seenKey(uid);
+  return (await keys(`notes/${uid}/`)).filter(k => !seen || k.split("/")[2] < seen).length;
+}
+async function pushTo(to: string, from: string, type: string, extra: Record<string, unknown>) {
+  const subs = await keys(`push/subs/${to}/`); if (!subs.length) return;
+  const who = type === "badge" ? null : await loadProfile(from);
+  const name = who?.name || "Someone";
+  const msg = type === "follow" ? { title: `${name} started following you`, body: "Tap to see their profile.", url: `/#u-${who?.handle || ""}` }
+    : type === "like" ? { title: `${name} liked your review`, body: "Tap to see it on Nunchi.", url: `/#drama-${extra.dramaId}` }
+    : type === "comment" ? { title: `${name} commented on your review`, body: String(extra.text || ""), url: `/#drama-${extra.dramaId}` }
+    : { title: `You earned a badge: ${BADGE_NAMES[String(extra.badge)] || "New badge"}`, body: "Tap to see your badges.", url: "/#notifications" };
+  const k = await vapid();
+  const payload = JSON.stringify({ ...msg, badge: await unreadCount(to), tag: `${type}-${Date.now()}` });
+  await Promise.all(subs.map(async key => {
+    const sub = await getJSON(key); if (!sub) return;
+    try { await webpush.sendNotification(sub, payload, { TTL: 86400, vapidDetails: { subject: "https://nunchi-kdrama.netlify.app", publicKey: k.publicKey, privateKey: k.privateKey } }); }
+    catch (e: any) { if (e?.statusCode === 404 || e?.statusCode === 410) await S().delete(key); else console.error("push", e?.statusCode, e?.body); }
+  }));
+}
+// Badges are worked out in the app (they need the catalog); the server keeps the earned set and announces new ones.
+// The first time it hears from someone it only records what they already have, so nobody gets a pile of old badges.
+async function awardBadges(uid: string, earned: string[]) {
+  const valid = earned.filter(k => k in BADGE_NAMES);
+  const had = await getJSON<string[]>(`badges/${uid}`);
+  if (!had) { await S().setJSON(`badges/${uid}`, [...new Set(valid)]); return []; }
+  const fresh = valid.filter(k => !had.includes(k));
+  if (!fresh.length) return [];
+  await S().setJSON(`badges/${uid}`, [...new Set([...had, ...fresh])]);
+  for (const b of fresh) await notify(uid, uid, "badge", { badge: b });
+  return fresh;
 }
 
 // Adds author card, like count, whether I liked it, and comment count to each review.
@@ -127,6 +176,21 @@ export default async (req: Request, _context: Context) => {
     }
     await saveProfile(me);
     return json(me);
+  }
+  if (a === "me" && b === "badges" && method === "POST") {
+    const me = await authed(); if (!me) return err(401, "Log in first.");
+    const body = await readBody(req);
+    return json({ fresh: await awardBadges(me.uid, Array.isArray(body.earned) ? body.earned.map(String).slice(0, 20) : []) });
+  }
+  if (a === "push" && b === "key" && method === "GET") return json({ key: (await vapid()).publicKey });
+  if (a === "push" && b === "subscribe" && (method === "POST" || method === "DELETE")) {
+    const me = await authed(); if (!me) return err(401, "Log in to turn on notifications.");
+    const sub = await readBody(req);
+    if (typeof sub?.endpoint !== "string" || !/^https:\/\//.test(sub.endpoint)) return err(400, "Invalid subscription.");
+    if (method === "DELETE") { await S().delete(subKey(me.uid, sub.endpoint)); return json({ ok: true }); }
+    if (!sub.keys?.p256dh || !sub.keys?.auth) return err(400, "Invalid subscription.");
+    await S().setJSON(subKey(me.uid, sub.endpoint), { endpoint: sub.endpoint, keys: { p256dh: String(sub.keys.p256dh), auth: String(sub.keys.auth) } });
+    return json({ ok: true });
   }
   if (a === "me" && b === "image" && method === "POST") {
     if (c !== "avatar" && c !== "banner") return err(400, "Unknown image type.");
@@ -242,7 +306,10 @@ export default async (req: Request, _context: Context) => {
     if (method === "POST") {
       const { modified } = await S().set(`follows/${me.uid}/${them}`, "1", { onlyIfNew: true });
       await S().set(`followers/${them}/${me.uid}`, "1");
-      if (modified) await notify(them, me.uid, "follow");
+      if (modified) {
+        await notify(them, me.uid, "follow");
+        if ((await keys(`followers/${them}/`)).length >= 10 && (await getJSON(`badges/${them}`))) await awardBadges(them, ["fan-fav"]);
+      }
     } else { await S().delete(`follows/${me.uid}/${them}`); await S().delete(`followers/${them}/${me.uid}`); }
     return json({ following: method === "POST", followers: (await keys(`followers/${them}/`)).length });
   }

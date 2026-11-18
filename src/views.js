@@ -1,6 +1,7 @@
 // UI components and views for Nunchi. Imported by app.js.
-import { S, $, esc, hash, starSvg, IMG, PLATFORMS, COUNTRY, GRADS, STATUS, plats, weighted, byWeighted, timeAgo, api, AVATARS, AVATAR_GROUPS, BANNERS } from "./core.js";
-import { BADGE_ART } from "./icons.js";
+import { S, $, esc, hash, starSvg, IMG, PLATFORMS, COUNTRY, GRADS, STATUS, plats, weighted, byWeighted, timeAgo, api, ls, AVATARS, AVATAR_GROUPS, BANNERS } from "./core.js";
+import { BADGE_ART, TAB_ICONS } from "./icons.js";
+import { pushPromptState, setAppBadge } from "./push.js";
 
 /* ---------- small components ---------- */
 export function posterHtml(d, tag){
@@ -86,7 +87,7 @@ export function badgesFor(p, reviewsCount){
     ["classic","Classic soul","Finished 3 dramas from before 2010", oldies>=3],
     ["social","Social butterfly","Following 5 people", (p.followingCount||0)>=5],
     ["fan-fav","Fan favorite","10 people follow you", (p.followers||0)>=10]
-  ].map(([key,name,desc,got])=>({icon:BADGE_ART[key],name,desc,got}));
+  ].map(([key,name,desc,got])=>({key,icon:BADGE_ART[key],name,desc,got}));
 }
 
 /* ---------- members-only gate ---------- */
@@ -128,6 +129,7 @@ export async function viewHome(app){
     </div>
   </section>
   <div class="wrap">
+    ${S.me?pushCardHtml("home"):""}
     ${S.me?`<section class="block" id="friendsBlock" hidden><div class="block-head"><div><span class="eyebrow">Your people</span><h2>Friends' activity</h2></div><a href="#community" class="see-all">Find friends →</a></div><div class="activity-row" id="friendsAct"></div></section>`:""}
     <section class="block"><div class="block-head"><div><span class="eyebrow">Everyone's watching</span><h2>Trending now</h2></div><a href="#catalog" class="see-all">View all →</a></div>
       <div class="scroller">${trending.map((d,i)=>cardHtml(d, `#${i+1} Trending`)).join("")}</div></section>
@@ -435,10 +437,20 @@ export function viewEditProfile(app){
 }
 
 /* ---------- notifications ---------- */
+// One-time card asking to turn on home-screen notifications (or, on iPhone in Safari, to add Nunchi to the home screen first).
+export function pushCardHtml(where){
+  const st = pushPromptState(); if (!st || (where==="home" && ls.get("nunchi:pushAsked"))) return "";
+  const text = st==="ask" ? "Get a heads-up when someone follows you, likes or comments on your review, or you earn a badge."
+    : "To get notifications on your iPhone, tap Share, then “Add to Home Screen”, and open Nunchi from there.";
+  return `<div class="push-card" role="region" aria-label="Notifications"><span class="push-ic">${TAB_ICONS.bell}</span><div><b>${st==="ask"?"Turn on notifications":"Add Nunchi to your home screen"}</b><p>${text}</p>
+    <div class="push-actions">${st==="ask"?`<button class="btn small" data-push="on">Turn on</button>`:""}${where==="home"?`<button class="btn ghost small" data-push="later">Not now</button>`:""}</div></div></div>`;
+}
 export async function viewNotifications(app){
-  app.innerHTML = `<div class="wrap narrow"><div class="page-head"><span class="eyebrow">Activity</span><h1>Notifications</h1></div><div id="notes"><div class="empty small">Loading…</div></div></div>`;
-  try { const ns = await api("notifications"); S.me.unread = 0; document.dispatchEvent(new Event("nunchi:me"));
+  app.innerHTML = `<div class="wrap narrow"><div class="page-head"><span class="eyebrow">Activity</span><h1>Notifications</h1></div>${pushCardHtml("notes")}<div id="notes"><div class="empty small">Loading…</div></div></div>`;
+  try { const ns = await api("notifications"); S.me.unread = 0; setAppBadge(0); document.dispatchEvent(new Event("nunchi:me"));
     $("#notes").innerHTML = ns.length ? ns.map(n=>{ const d = n.dramaId && S.BYID.get(n.dramaId);
+      if (n.type==="badge") { const bd = badgesFor({},0).find(x=>x.key===n.badge);
+        return `<a class="note ${n.unread?"unread":""}" href="#u-${esc(S.me.handle)}"><span class="note-badge">${bd?.icon||""}</span><div>You earned the badge <b>${esc(bd?.name||"New badge")}</b>${bd?` · ${esc(bd.desc)}`:""}<div class="handle">${timeAgo(n.at)}</div></div></a>`; }
       const what = n.type==="follow" ? "started following you" : n.type==="like" ? `liked your review of <b>${esc(d?.title||"a drama")}</b>` : `commented on your review of <b>${esc(d?.title||"a drama")}</b>: “${esc(n.text||"")}”`;
       const href = n.type==="follow" ? `#u-${esc(n.user.handle)}` : `#drama-${esc(n.dramaId)}`;
       return `<a class="note ${n.unread?"unread":""}" href="${href}">${avatarHtml(n.user,44)}<div><b>${esc(n.user.name)}</b> ${what}<div class="handle">${timeAgo(n.at)}</div></div>${d?thumbHtml(d,"note-thumb"):""}</a>`; }).join("")

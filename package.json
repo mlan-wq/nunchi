@@ -13,7 +13,8 @@
     "@netlify/blobs": "^11.1.9",
     "@netlify/functions": "^6.1.1",
     "@netlify/identity": "^2.0.1",
-    "esbuild": "^0.28.2"
+    "esbuild": "^0.28.2",
+    "web-push": "^3.6.7"
   },
   "type": "module",
   "private": true

@@ -3,10 +3,13 @@ import { getUser, login, signup, logout, oauthLogin, handleAuthCallback, getSett
 import { S, $, esc, ls, toast, api, setRefresher, COUNTRY, STATUS } from "./core.js";
 import { avatarHtml, commentHtml, reviewCard, thumbHtml, viewHome, viewCatalog, renderResults, catState, viewDetail, viewRanking, viewCommunity, renderMembers, viewMyList, viewProfile, openPeople, viewEditProfile, viewNotifications } from "./views.js";
 import { TAB_ICONS } from "./icons.js";
+import { registerSW, enablePush, syncPush, setAppBadge, scheduleBadgeCheck, disablePushForThisDevice } from "./push.js";
+import { badgesFor } from "./views.js";
 
 /* ---------- AUTH UI ---------- */
 function renderAuthSlot(){
   const slot = $("#authSlot");
+  if (S.me) setAppBadge(S.me.unread||0);
   if (S.me) slot.innerHTML = `<a class="icon-btn bell" href="#notifications" aria-label="Notifications">${TAB_ICONS.bell}${S.me.unread?`<span class="dot">${S.me.unread>9?"9+":S.me.unread}</span>`:""}</a><a class="me-pill" href="#u-${esc(S.me.handle)}" title="Your profile">${avatarHtml(S.me,34)}<span>${esc(S.me.name)}</span></a>`;
   else slot.innerHTML = `<button class="list-pill" data-act="login">Log in</button>`;
   const tab = $("#tabMe"); if (tab) { tab.href = S.me ? `#u-${S.me.handle}` : "#login"; tab.querySelector(".tab-ic").innerHTML = S.me ? avatarHtml(S.me,26) : TAB_ICONS.me; tab.querySelector(".tab-label").textContent = S.me ? "Profile" : "Log in"; }
@@ -112,7 +115,7 @@ async function rerender(){ const y = scrollY; await route(); scrollTo(0,y); }
 /* ---------- ACTIONS ---------- */
 async function setList(id, body, msg){
   if (!S.me) return requireLogin("Log in to save dramas to your list.");
-  try { S.me = {...S.me, ...await api(`list/${encodeURIComponent(id)}`,{method:"PUT",body:JSON.stringify(body)})}; if (msg) toast(msg); return true; } catch(err){ toast(err.message); return false; }
+  try { S.me = {...S.me, ...await api(`list/${encodeURIComponent(id)}`,{method:"PUT",body:JSON.stringify(body)})}; if (msg) toast(msg); scheduleBadgeCheck(badgesFor); return true; } catch(err){ toast(err.message); return false; }
 }
 async function saveMe(body, msg){
   try { S.me = {...S.me, ...await api("me",{method:"PUT",body:JSON.stringify(body)})}; renderAuthSlot(); if (msg) toast(msg); return true; }
@@ -177,6 +180,11 @@ function keepFormRerender(){
   viewEditProfile($("#app")); if (keep.n!==undefined){ $("#pName").value=keep.n; $("#pHandle").value=keep.h; $("#pBio").value=keep.b; } scrollTo(0,y);
 }
 document.addEventListener("click", async e=>{
+  const pb = e.target.closest("[data-push]");
+  if (pb) { const card = pb.closest(".push-card");
+    if (pb.dataset.push==="on") { pb.disabled = true; const ok = await enablePush(); if (ok || Notification.permission!=="default") card?.remove(); else pb.disabled = false; }
+    else { ls.set("nunchi:pushAsked", 1); card?.remove(); }
+    return; }
   const back = e.target.closest("a.back");
   if (back && fromHash && (fromHash===back.getAttribute("href") || fromHash==="#catalog")) { e.preventDefault(); history.back(); return; }
   const b = e.target.closest("button, a[data-act], a[data-jump]"); if(!b) return;
@@ -186,7 +194,7 @@ document.addEventListener("click", async e=>{
   if (act==="closeDialog") { $("#authDialog").close(); return; }
   if (act==="login") openAuth("login");
   if (act==="signup") openAuth("signup");
-  if (act==="logout"){ await logout(); S.me=null; renderAuthSlot(); toast("Logged out"); go("#home"); }
+  if (act==="logout"){ await disablePushForThisDevice(); setAppBadge(0); await logout(); S.me=null; renderAuthSlot(); toast("Logged out"); go("#home"); }
   if (act==="more"){ catState.limit+=60; renderResults(); }
   if (act==="reveal"){ b.closest(".rc-text").classList.remove("spoiler"); b.remove(); }
   if (act==="expand"){ b.previousElementSibling.classList.remove("clamp"); b.remove(); }
@@ -226,7 +234,7 @@ document.addEventListener("click", async e=>{
   if (b.dataset.follow){
     if (!S.me) return requireLogin("Log in to follow people.");
     const on = b.dataset.on==="1", h = b.dataset.follow; b.disabled = true;
-    try { await api(`follow/${encodeURIComponent(h)}`,{method:on?"DELETE":"POST"});
+    try { await api(`follow/${encodeURIComponent(h)}`,{method:on?"DELETE":"POST"}); scheduleBadgeCheck(badgesFor);
       document.querySelectorAll(`[data-follow="${CSS.escape(h)}"]`).forEach(x=>{ x.dataset.on=on?"0":"1"; x.textContent=on?"Follow":"Following"; x.classList.toggle("ghost",!on); });
       const m = (S.members||[]).find(x=>x.handle===h); if (m) m.isFollowing = !on;
       S.me = {...S.me, ...await api("me")};
@@ -276,11 +284,12 @@ async function boot(){
     else if (cb) toast("You're in!");
   } catch(e){ if (e?.name==="MissingIdentityError") S.identityOn=false; }
   await loadMe();
-  try { onAuthChange(ev=>{ if (ev!=="token_refresh") loadMe(); }); } catch {}
+  try { onAuthChange(ev=>{ if (ev!=="token_refresh") loadMe().then(()=>syncPush()); }); } catch {}
   // force a fresh token (the stored one may have expired while the app slept) and retry once
   setRefresher(async ()=>{ restoreSessionCookies(); const u = await getUser(); if (!u) return null; await refreshSession().catch(()=>{}); return true; });
   document.addEventListener("visibilitychange", ()=>{ if (document.visibilityState==="visible" && S.me) refreshSession().catch(()=>{}); });
   await route();
+  registerSW().then(()=>{ if (S.me) { syncPush(); scheduleBadgeCheck(badgesFor); } });
   setInterval(async ()=>{ if (S.me && document.visibilityState==="visible") { try { const m = await api("me"); if (m.unread!==S.me.unread) { S.me.unread = m.unread; renderAuthSlot(); } } catch {} } }, 60000);
 }
 boot();
