@@ -26,8 +26,12 @@ export function rankRows(list){
     <div class="rank-body"><div class="rank-title">${esc(d.title)}</div><div class="rank-meta">${d.genres.slice(0,2).join(" · ")} · ${d.year}</div></div>
     ${platChips(d)}<div class="rank-score">${starSvg("#fff")}${d.score.toFixed(1)}</div></a>`).join("");
 }
-// Old illustrated presets (/avatars/aNN.svg) now show the matching new character portrait.
-export const avatarSrc = u => (u?.avatar||"").replace(/^\/avatars\/a(\d{2})\.svg$/, "/avatars/presets/char-$1.jpg") || AVATARS[hash(u?.handle||u?.uid||"x") % AVATARS.length];
+// Older character presets (/avatars/aNN.svg, /avatars/presets/char-NN.jpg) now show the matching new portrait.
+// Banners from the first set map onto Laura's new ones.
+const OLD_BANNERS = ["canola-fields","tangerine-grove","first-snow","hanok-night","han-river","cherry-blossoms","seaside-village","rooftop-night","rainy-bus-stop","convenience-store"];
+export const bannerSrc = b => { const m = /^\/banners\/([a-z-]+)\.jpg$/.exec(b||""); const i = m ? OLD_BANNERS.indexOf(m[1]) : -1;
+  return !b ? `/banners/${BANNERS[0].id}.jpg` : i >= 0 ? `/banners/${BANNERS[i].id}.jpg` : b; };
+export const avatarSrc = u => (u?.avatar||"").replace(/^\/avatars\/(?:a|presets\/char-)(\d{2})\.(?:svg|jpg)$/, "/avatars/set2/char-$1.jpg") || AVATARS[hash(u?.handle||u?.uid||"x") % AVATARS.length];
 export const avatarHtml = (u, size=42) => `<img class="avatar" src="${esc(avatarSrc(u))}" alt="" width="${size}" height="${size}" style="width:${size}px;height:${size}px">`;
 export const starsRow = r => `<span class="mini-stars" aria-label="${r} out of 5">${[1,2,3,4,5].map(i=>starSvg(i<=r?"var(--lavender-dark)":i-0.5<=r?"var(--lavender)":"var(--line)")).join("")}</span>`;
 export const followBtn = (handle, following) => S.me && S.me.handle!==handle ? `<button class="btn ${following?"ghost":""} small follow-btn" data-follow="${esc(handle)}" data-on="${following?1:0}">${following?"Following":"Follow"}</button>` : "";
@@ -87,7 +91,7 @@ export function badgesFor(p, reviewsCount){
 
 /* ---------- members-only gate ---------- */
 export function lockedHtml(title, text, big=false){
-  const ghost = ["03","08","12","19"].map((a,i)=>`<div class="ghost-card"><img src="/avatars/presets/char-${a}.jpg" alt=""><div><i style="width:${60+i*7}%"></i><i style="width:${85-i*9}%"></i><i style="width:${50+i*5}%"></i></div></div>`).join("");
+  const ghost = ["03","08","12","19"].map((a,i)=>`<div class="ghost-card"><img src="/avatars/set2/char-${a}.jpg" alt=""><div><i style="width:${60+i*7}%"></i><i style="width:${85-i*9}%"></i><i style="width:${50+i*5}%"></i></div></div>`).join("");
   return `<div class="locked ${big?"big":""}"><div class="ghosts" aria-hidden="true">${ghost}</div>
     <div class="locked-body"><img src="/star.png" alt=""><h3>${title}</h3><p>${text}</p>
       <div class="locked-actions"><button class="btn" data-act="signup">Create my free profile</button><button class="btn ghost" data-act="login">Log in</button></div></div></div>`;
@@ -286,7 +290,7 @@ export function renderMembers(){
     .sort((a,b)=> sort==="new" ? (b.createdAt||0)-(a.createdAt||0) : (b.followers-a.followers) || (b.createdAt||0)-(a.createdAt||0));
   const isNew = m => Date.now()-(m.createdAt||0) < 7*864e5;
   $("#members").innerHTML = ms.length ? ms.map(m=>`<div class="member">
-      <a href="#u-${esc(m.handle)}" class="m-banner" style="background-image:url('${esc(m.banner||"/banners/canola-fields.jpg")}')" aria-label="${esc(m.name)}'s profile"></a>
+      <a href="#u-${esc(m.handle)}" class="m-banner" style="background-image:url('${esc(bannerSrc(m.banner))}')" aria-label="${esc(m.name)}'s profile"></a>
       <div class="m-body"><div class="m-top"><a href="#u-${esc(m.handle)}">${avatarHtml(m,60)}</a>${followBtn(m.handle,m.isFollowing)}</div>
       <a href="#u-${esc(m.handle)}" class="m-name">${esc(m.name)}</a>${isNew(m)?`<span class="new-pill">New</span>`:""}<div class="handle">@${esc(m.handle)}${m.createdAt?` · joined ${timeAgo(m.createdAt)}`:""}</div>
       ${m.bio?`<p class="m-bio">${esc(m.bio)}</p>`:""}<div class="m-stats"><span><b>${m.followers}</b> follower${m.followers===1?"":"s"}</span><span><b>${m.finished}</b> finished</span><span><b>${m.ratings}</b> rated</span></div>
@@ -371,7 +375,7 @@ export async function viewProfile(app, handle){
   }
   else body = `<div class="badges">${badges.map(b=>`<div class="badge ${b.got?"got":""}"><span class="b-icon">${b.icon}</span><div><b>${b.name}</b><span>${b.desc}</span></div></div>`).join("")}</div>`;
   app.innerHTML = `
-    <div class="profile-banner" style="background-image:url('${esc(p.banner||"/banners/canola-fields.jpg")}')"></div>
+    <div class="profile-banner" style="background-image:url('${esc(bannerSrc(p.banner))}')"></div>
     <div class="wrap">
       <div class="profile-head">
         <img class="avatar big-avatar" src="${esc(avatarSrc(p))}" alt="">
@@ -406,7 +410,7 @@ export function viewEditProfile(app){
     <div class="page-head"><span class="eyebrow">Your profile</span><h1>Edit profile</h1></div>
     <form id="profileForm" class="edit-form">
       <div class="img-edit">
-        <div class="banner-edit" style="background-image:url('${esc(me.banner||"/banners/canola-fields.jpg")}')"></div>
+        <div class="banner-edit" style="background-image:url('${esc(bannerSrc(me.banner))}')"></div>
         <img class="avatar avatar-edit" src="${esc(avatarSrc(me))}" alt="">
       </div>
       <fieldset><legend>Profile picture</legend>
@@ -415,7 +419,7 @@ export function viewEditProfile(app){
           <div class="avatar-grid">${g.items.map(a=>`<button type="button" class="pick ${avatarSrc(me)===a?"on":""}" data-avatar="${a}" aria-label="${esc(a.split("/").pop().replace(/\.jpg$/,"").replace(/^[a-z]+-/,"").replace(/-/g," "))}"><img src="${a}" alt="" loading="lazy"></button>`).join("")}
           <label class="pick upload" title="Upload your own photo"><span>＋<small>Upload</small></span><input type="file" accept="image/*" data-img="avatar" hidden></label></div>`; })()}</fieldset>
       <fieldset><legend>Banner</legend>
-        <div class="banner-grid">${BANNERS.map(b=>`<button type="button" class="pick-banner ${me.banner===`/banners/${b.id}.jpg`?"on":""}" data-banner="/banners/${b.id}.jpg"><img src="/banners/${b.id}.jpg" alt="" loading="lazy"><span>${b.name}</span></button>`).join("")}
+        <div class="banner-grid">${BANNERS.map(b=>`<button type="button" class="pick-banner ${bannerSrc(me.banner)===`/banners/${b.id}.jpg`?"on":""}" data-banner="/banners/${b.id}.jpg"><img src="/banners/${b.id}.jpg" alt="" loading="lazy"><span>${b.name}</span></button>`).join("")}
           <label class="pick-banner upload"><span>＋ Upload your own</span><input type="file" accept="image/*" data-img="banner" hidden></label></div></fieldset>
       <label>Name<input id="pName" maxlength="40" value="${esc(me.name)}" required></label>
       <label>Username<div class="prefix"><span>@</span><input id="pHandle" maxlength="20" pattern="[a-z0-9_]{3,20}" value="${esc(me.handle)}" required autocapitalize="off"></div><small>3–20 lowercase letters, numbers or underscores.</small></label>

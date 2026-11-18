@@ -8,7 +8,7 @@ const json = (data: unknown, status = 200) => Response.json(data, { status, head
 const err = (status: number, message: string) => json({ error: message }, status);
 
 const HANDLE_RE = /^[a-z0-9_]{3,20}$/;
-const PRESET_RE = /^\/(avatars\/a\d{2}\.svg|avatars\/presets\/[a-z0-9-]{3,40}\.jpg|banners\/[a-z-]{3,40}\.jpg)$/;
+const PRESET_RE = /^\/(avatars\/a\d{2}\.svg|avatars\/(?:presets|set2)\/[a-z0-9-]{3,40}\.jpg|banners\/[a-z-]{3,40}\.jpg)$/;
 const STATUSES = ["want", "watching", "done"];
 const MAX_FAVORITES = 100;
 const AVATAR_COUNT = 24;
@@ -53,8 +53,8 @@ async function newProfile(user: { id: string; email?: string; name?: string; cre
     if (modified) break;
     handle = `${base}${Math.floor(Math.random() * 9000 + 1000)}`;
   }
-  const avatar = `/avatars/presets/char-${String(Math.floor(Math.random() * AVATAR_COUNT) + 1).padStart(2, "0")}.jpg`;
-  const p: Profile = { uid: user.id, handle, name: user.name || handle, bio: "", avatar, banner: "/banners/canola-fields.jpg", favorites: [], list: {}, createdAt: user.createdAt ? Date.parse(user.createdAt) || Date.now() : Date.now() };
+  const avatar = `/avatars/set2/char-${String(Math.floor(Math.random() * AVATAR_COUNT) + 1).padStart(2, "0")}.jpg`;
+  const p: Profile = { uid: user.id, handle, name: user.name || handle, bio: "", avatar, banner: "/banners/spring-palace.jpg", favorites: [], list: {}, createdAt: user.createdAt ? Date.parse(user.createdAt) || Date.now() : Date.now() };
   await saveProfile(p);
   return p;
 }

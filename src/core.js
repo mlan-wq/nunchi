@@ -21,20 +21,20 @@ export const IMG = (p, size="w342") => p ? `https://image.tmdb.org/t/p/${size}${
 
 
 export const S = { CAT:{source:"seed", regions:["US"], dramas:[]}, DRAMAS:[], BYID:new Map(), region:"US", me:null, identityOn:true, listTab:"all", profileTab:"favorites", profileSort:"recent", profileStars:"all", members:null };
-// Profile-picture presets, grouped for the picker (images in /avatars/presets/).
-const AV = n => `/avatars/presets/${n}.jpg`;
+// Profile-picture presets (Laura's artwork, /avatars/set2/), grouped for the picker.
+const AV = n => `/avatars/set2/${n}.jpg`;
 export const AVATAR_GROUPS = [
   { key:"characters", name:"Characters", items: Array.from({length:24}, (_,i)=>AV(`char-${String(i+1).padStart(2,"0")}`)) },
-  { key:"food", name:"Food", items: ["kimchi-stew","bibimbap","tteokbokki","kimbap","ramyeon","jajangmyeon","fried-chicken","corn-dog","hotteok","bungeoppang","bingsu","dalgona"].map(n=>AV(`food-${n}`)) },
-  { key:"snacks", name:"Snacks & drinks", items: [...["banana-milk","strawberry-milk","pepero","tteok-skewers","cup-ramyeon","samgak-kimbap","strawberry-cake"].map(n=>AV(`snack-${n}`)), AV("drink-soju"), AV("drink-makgeolli")] },
-  { key:"places", name:"Places & things", items: [...["cherry-blossoms","palace","namsan-tower","hanok"].map(n=>AV(`place-${n}`)), ...["camera","headphones","kdrama-books","clapperboard","umbrella","varsity-jacket","doctor-coat","gavel","crown","lantern"].map(n=>AV(`thing-${n}`))] }
+  { key:"food", name:"Food", items: ["ramyeon","tteokbokki","kimbap","bibimbap","fried-chicken","hotteok","dalgona"].map(n=>AV(`food-${n}`)) },
+  { key:"snacks", name:"Snacks & drinks", items: ["mango-bingsu","banana-milk","macarons","soju","dalgona-coffee"].map(n=>AV(`snack-${n}`)) },
+  { key:"objects", name:"Objects", items: ["norigae-mirror","diary","camera","headphones","yellow-umbrella","doctor-coat"].map(n=>AV(`obj-${n}`)) }
 ];
 export const AVATARS = AVATAR_GROUPS[0].items; // default faces for people who haven't picked one
 export const BANNERS = [
-  {id:"canola-fields", name:"Canola fields"}, {id:"tangerine-grove", name:"Tangerine grove"}, {id:"first-snow", name:"First snow"},
-  {id:"hanok-night", name:"Hanok night"}, {id:"han-river", name:"Han River sunset"}, {id:"cherry-blossoms", name:"Cherry blossoms"},
-  {id:"seaside-village", name:"Seaside village"}, {id:"rooftop-night", name:"Rooftop date"}, {id:"rainy-bus-stop", name:"Rainy bus stop"},
-  {id:"convenience-store", name:"Late-night store"}
+  {id:"spring-palace", name:"Spring palace"}, {id:"han-river-sunset", name:"Han River sunset"}, {id:"seaside-bus-stop", name:"Seaside bus stop"},
+  {id:"cafe-street", name:"Café street"}, {id:"autumn-campus", name:"Autumn campus"}, {id:"snowy-bridge", name:"Snowy bridge"},
+  {id:"joseon-romance", name:"Joseon romance"}, {id:"spring-schoolmates", name:"Spring schoolmates"}, {id:"sunset-beach", name:"Sunset beach"},
+  {id:"yellow-umbrella", name:"Yellow umbrella"}, {id:"ramyeon-date", name:"Ramyeon date"}, {id:"cherry-bench", name:"Cherry bench"}
 ];
 /* ---------- HELPERS ---------- */
 export const $ = s => document.querySelector(s);
